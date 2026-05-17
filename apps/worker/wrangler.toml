@@ -1,0 +1,44 @@
+name = "b2b-companion"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "b2b-companion"
+database_id = "REPLACE_WITH_D1_ID"
+
+[[kv_namespaces]]
+binding = "KV_SESSIONS"
+id = "REPLACE_WITH_KV_SESSIONS_ID"
+
+[[kv_namespaces]]
+binding = "KV_IDEMPOTENCY"
+id = "REPLACE_WITH_KV_IDEMPOTENCY_ID"
+
+[[kv_namespaces]]
+binding = "KV_HOT_CACHE"
+id = "REPLACE_WITH_KV_HOT_CACHE_ID"
+
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "b2b-companion-assets"
+
+[[queues.producers]]
+binding = "WEBHOOK_QUEUE"
+queue = "b2b-webhook-queue"
+
+[[queues.consumers]]
+queue = "b2b-webhook-queue"
+max_batch_size = 10
+max_batch_timeout = 5
+
+[vars]
+APP_URL = "https://REPLACE_WITH_YOUR_WORKER_URL"
+SHOPIFY_API_VERSION = "2025-04"
+
+# Secrets (set via: wrangler secret put SHOPIFY_API_KEY)
+# SHOPIFY_API_KEY
+# SHOPIFY_API_SECRET
+# MASTER_KEY  (256-bit hex)
+# RESEND_API_KEY
