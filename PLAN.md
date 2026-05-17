@@ -72,7 +72,7 @@ downloaded an asset, and was warned at a minimum-order violation.
 - [ ] **P0** Per-blur autosave keyed by email + signed resume token (14-day TTL).
 - [ ] **P0** Browser → R2 direct signed PUT for documents (per DECISIONS #8).
 - [ ] **P0** AES-GCM encrypt `applications.form_data_encrypted`.
-- [ ] **P0** Tax-ID validators (format only): ABN, EIN, EU VAT, GST. Pluggable per country.
+- [ ] **P0** Tax-ID validators (format only): NZ IRD/GST first (pilot). Pluggable per country; ABN, EIN, EU VAT added as merchants need them.
 - [ ] **P0** Turnstile captcha on submit.
 - [ ] **P0** Admin approval queue (list, filters, detail, doc previews via signed URL).
 - [ ] **P0** Idempotent approve: D1 tx + GraphQL `companyCreate` / `companyLocationCreate` / `companyContactCreate` with mutation idempotency key.
@@ -96,7 +96,7 @@ downloaded an asset, and was warned at a minimum-order violation.
 
 ### 1I — §6 Merchant onboarding wizard
 - [ ] **P0** Step 1 detect existing Companies/Catalogs/Markets + classic wholesale-tagged customers.
-- [ ] **P0** Step 2 migration wizard (dry-run + commit) — critical-path under DECISIONS #12 assumptions.
+- [ ] **P1** Step 2 migration wizard (dry-run + commit). Downgraded to P1 per DECISIONS #12 — ~20 wholesale-tagged customers can be imported manually for the pilot.
 - [ ] **P0** Step 3 tier setup with defaults + Markets binding.
 - [ ] **P0** Step 4 registration form builder + approval mode.
 - [ ] **P0** Step 5 asset library bootstrap (skippable).
