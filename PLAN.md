@@ -126,6 +126,7 @@ Lighthouse Performance ≥ 80 on buyer pages; App Bridge init < 100ms.
 - [ ] **P2** Audit-log table + writes for approvals, tier changes, asset visibility changes.
 - [ ] **P2** PII inventory + scope-justification doc (for BFS review).
 - [ ] **P2** Web Vitals + App Bridge perf measured in CI synthetic run.
+- [ ] **P0** Internal operator console at `/_ops/*` behind Cloudflare Access SSO (per DECISIONS #17): webhook replay, queue retry, per-shop feature flags, GDPR audit view, encryption-key rotation. Operator identity captured in audit log on every mutation. Promoted to P0 because the pilot phase is when we most need it; UI can stay minimal.
 
 ---
 
