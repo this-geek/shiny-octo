@@ -1,0 +1,61 @@
+{% comment %}
+  b2b-price.liquid — Theme App Extension App Block
+  Phase 1B implementation
+
+  This block renders the tier-discounted price alongside (or replacing) the
+  standard Shopify price on product pages. It reads the buyer's cached tier
+  from localStorage (set after login by the storefront JS module) and applies
+  the discount client-side for instant display.
+
+  IMPORTANT — Security invariant (see DECISIONS #10):
+  The localStorage tier cache is for UX only. It provides instant price
+  display on subsequent page loads WITHOUT a server round-trip. The actual
+  discount is always applied server-side by the cart-transform Shopify Function,
+  which re-resolves the tier from the Company metafield on every request.
+  Never use the localStorage cache to gate access or make authorization decisions.
+
+  TODO Phase 1B:
+  - Read tier_id from localStorage key 'b2b_tier'
+  - Fetch tier discount config from App Proxy (/apps/b2b/tier?id=...)
+  - Render discounted price with tier badge
+  - Handle loading state and missing/expired cache gracefully
+  - Respect CSP — no inline scripts; all JS in assets/b2b-price.js
+{% endcomment %}
+
+<div
+  class="b2b-price-block"
+  data-b2b-price-block
+  data-product-id="{{ product.id }}"
+  data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+  data-base-price="{{ product.selected_or_first_available_variant.price }}"
+>
+  {%- comment -%}
+    Populated by assets/b2b-price.js after reading the tier from localStorage.
+    Falls back gracefully to empty when no B2B session is active.
+  {%- endcomment -%}
+</div>
+
+{% schema %}
+{
+  "name": "B2B Tier Price",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_savings_badge",
+      "label": "Show savings badge",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "price_display",
+      "label": "Price display mode",
+      "options": [
+        { "value": "replace", "label": "Replace standard price" },
+        { "value": "alongside", "label": "Show alongside standard price" }
+      ],
+      "default": "alongside"
+    }
+  ]
+}
+{% endschema %}

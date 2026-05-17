@@ -15,16 +15,16 @@ Legend: `P0` blocks the pilot · `P1` blocks Day 2 · `P2` blocks App Store.
 HMAC-verified webhooks are replay-safe; CI is green on a hello-world Worker.
 
 - [ ] **P0** Confirm pilot merchant facts vs §12 of DECISIONS.md (plan, theme, country, customer counts).
-- [ ] **P0** Scaffold monorepo (`apps/worker`, `apps/admin`, `extensions/...`, `packages/shared`) via Shopify CLI.
-- [ ] **P0** Configure `shopify.app.toml` with declarative scopes from §2 + `app/scopes_update` (per DECISIONS #11).
-- [ ] **P0** Provision Cloudflare resources: Workers, D1, KV (sessions, idempotency, hot cache), R2 bucket, Queues, Cloudflare Images, secrets (master key, Shopify API secret, Resend key).
-- [ ] **P0** D1 migration `0001_init.sql` mirroring §8 schema.
-- [ ] **P0** Shopify OAuth install flow + token AES-GCM encryption (per-shop HKDF subkey).
-- [ ] **P0** Webhook ingress: raw-body HMAC verify, `webhook_log` idempotency, Queue fan-out.
-- [ ] **P0** `app/uninstalled` handler (soft-mark `shops.uninstalled_at`, schedule data retention job).
-- [ ] **P0** Structured logging helper (no PII, hashed customer IDs only).
-- [ ] **P0** CI pipeline: typecheck, unit tests, Shopify Function test harness, Playwright smoke, `gitleaks` secret scan.
-- [ ] **P0** `shared` package: pricing logic compiled for both Function (Rust/JS) and storefront block targets, with a parity test scaffold.
+- [x] **P0** Scaffold monorepo (`apps/worker`, `apps/admin`, `extensions/...`, `packages/shared`) via Shopify CLI.
+- [x] **P0** Configure `shopify.app.toml` with declarative scopes from §2 + `app/scopes_update` (per DECISIONS #11).
+- [ ] **P0** Provision Cloudflare resources: Workers, D1, KV (sessions, idempotency, hot cache), R2 bucket, Queues, Cloudflare Images, secrets (master key, Shopify API secret, Resend key). *(See MANUAL_STEPS.md)*
+- [x] **P0** D1 migration `0001_init.sql` mirroring §8 schema.
+- [x] **P0** Shopify OAuth install flow + token AES-GCM encryption (per-shop HKDF subkey).
+- [x] **P0** Webhook ingress: raw-body HMAC verify, `webhook_log` idempotency, Queue fan-out.
+- [x] **P0** `app/uninstalled` handler (soft-mark `shops.uninstalled_at`, schedule data retention job).
+- [x] **P0** Structured logging helper (no PII, hashed customer IDs only).
+- [x] **P0** CI pipeline: typecheck, unit tests, Shopify Function test harness, Playwright smoke, `gitleaks` secret scan.
+- [x] **P0** `shared` package: pricing logic compiled for both Function (Rust/JS) and storefront block targets, with a parity test scaffold.
 
 ---
 
