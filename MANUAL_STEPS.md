@@ -46,19 +46,33 @@ In the app's **App setup** page:
 
 ### 2.3 Webhook subscriptions
 
-In **App setup → Webhooks**, add subscriptions for each topic listed in `wrangler.toml`:
+Shopify splits webhooks into two categories with different setup paths.
+
+#### GDPR mandatory webhooks (Partner Dashboard)
+
+Go to your app → **Configuration** → **GDPR mandatory webhooks**. Set the endpoint URL for each of the three required topics:
+
+| Topic | Endpoint |
+|---|---|
+| `customers/data_request` | `https://<your-worker-subdomain>.workers.dev/webhooks` |
+| `customers/redact` | `https://<your-worker-subdomain>.workers.dev/webhooks` |
+| `shop/redact` | `https://<your-worker-subdomain>.workers.dev/webhooks` |
+
+There is no UI in the Partner Dashboard for any other webhook topics.
+
+#### All other webhooks (registered programmatically)
+
+All non-GDPR webhooks must be registered via the Admin GraphQL API (`webhookSubscriptionCreate` mutation) after OAuth install completes. The post-install handler in `apps/worker/src/routes/oauth.ts` is responsible for registering:
+
 - `app/uninstalled`
 - `shop/update`
 - `companies/create`, `companies/update`, `companies/delete`
 - `company_locations/create`, `company_locations/update`
 - `customers/create`, `customers/update`
-- `customers/data_request` (GDPR — mandatory)
-- `customers/redact` (GDPR — mandatory)
-- `shop/redact` (GDPR — mandatory)
 - `orders/create`, `orders/updated`, `orders/cancelled`
 - `app/scopes_update`
 
-Webhook endpoint URL: `https://<your-worker-subdomain>.workers.dev/webhooks`
+> Note: The programmatic registration logic has not been implemented yet — it is part of Phase 0 OAuth completion work.
 
 ### 2.4 App scopes
 
@@ -185,14 +199,6 @@ cp .env.example .env
 ```
 
 Edit `.env` with your Shopify app credentials for local development. (`.env` is git-ignored.)
-
-> `.env.example` is not yet created — create it with the following contents:
-> ```
-> SHOPIFY_API_KEY=your_api_key_here
-> SHOPIFY_API_SECRET=your_api_secret_here
-> MASTER_KEY=your_256_bit_hex_key_here
-> RESEND_API_KEY=your_resend_key_here
-> ```
 
 ### 5.3 Run the D1 migration locally
 
