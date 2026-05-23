@@ -10,8 +10,6 @@
 export interface ShopifyCompanySummary {
   id: string;
   name: string;
-  externalId: string | null;
-  locationsCount: number | null;
 }
 
 export interface ShopifyCompaniesResult {
@@ -23,14 +21,12 @@ const PAGE_SIZE = 100;
 const MAX_COMPANIES = 1000;
 
 const QUERY = `query ListCompanies($cursor: String) {
-  companies(first: ${PAGE_SIZE}, after: $cursor, sortKey: NAME) {
+  companies(first: ${PAGE_SIZE}, after: $cursor) {
     pageInfo { hasNextPage endCursor }
     edges {
       node {
         id
         name
-        externalId
-        locationsCount { count }
       }
     }
   }
@@ -44,8 +40,6 @@ interface GraphQLResponse {
         node: {
           id: string;
           name: string;
-          externalId: string | null;
-          locationsCount: { count: number } | null;
         };
       }>;
     };
@@ -74,7 +68,10 @@ export async function listShopifyCompanies(
       },
     );
 
-    if (!res.ok) throw new Error(`listShopifyCompanies HTTP ${res.status}`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`listShopifyCompanies HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
 
     const json = (await res.json()) as GraphQLResponse;
     if (json.errors?.length) {
@@ -87,12 +84,7 @@ export async function listShopifyCompanies(
     if (!page) break;
 
     for (const edge of page.edges) {
-      all.push({
-        id: edge.node.id,
-        name: edge.node.name,
-        externalId: edge.node.externalId,
-        locationsCount: edge.node.locationsCount?.count ?? null,
-      });
+      all.push({ id: edge.node.id, name: edge.node.name });
       if (all.length >= MAX_COMPANIES) break;
     }
 

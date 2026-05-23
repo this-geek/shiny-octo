@@ -137,11 +137,12 @@ adminTiersRouter.get('/shopify-companies', async c => {
     );
     return c.json(result);
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     log('error', 'admin: listShopifyCompanies failed', {
       shop: shopDomain,
-      error: String(err),
+      error: message,
     });
-    return c.json({ error: 'could not list Shopify companies' }, 502);
+    return c.json({ error: message }, 502);
   }
 });
 

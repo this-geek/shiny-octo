@@ -27,22 +27,8 @@ describe('listShopifyCompanies', () => {
           companies: {
             pageInfo: { hasNextPage: false, endCursor: null },
             edges: [
-              {
-                node: {
-                  id: 'gid://shopify/Company/1',
-                  name: 'Alpha',
-                  externalId: null,
-                  locationsCount: { count: 1 },
-                },
-              },
-              {
-                node: {
-                  id: 'gid://shopify/Company/2',
-                  name: 'Bravo',
-                  externalId: 'EXT-2',
-                  locationsCount: null,
-                },
-              },
+              { node: { id: 'gid://shopify/Company/1', name: 'Alpha' } },
+              { node: { id: 'gid://shopify/Company/2', name: 'Bravo' } },
             ],
           },
         },
@@ -52,8 +38,8 @@ describe('listShopifyCompanies', () => {
     const result = await listShopifyCompanies('example.myshopify.com', 'shpat_t', '2026-04');
     expect(result.truncated).toBe(false);
     expect(result.companies).toEqual([
-      { id: 'gid://shopify/Company/1', name: 'Alpha', externalId: null, locationsCount: 1 },
-      { id: 'gid://shopify/Company/2', name: 'Bravo', externalId: 'EXT-2', locationsCount: null },
+      { id: 'gid://shopify/Company/1', name: 'Alpha' },
+      { id: 'gid://shopify/Company/2', name: 'Bravo' },
     ]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -70,16 +56,7 @@ describe('listShopifyCompanies', () => {
         data: {
           companies: {
             pageInfo: { hasNextPage: true, endCursor: 'cursor-1' },
-            edges: [
-              {
-                node: {
-                  id: 'gid://shopify/Company/1',
-                  name: 'Alpha',
-                  externalId: null,
-                  locationsCount: { count: 1 },
-                },
-              },
-            ],
+            edges: [{ node: { id: 'gid://shopify/Company/1', name: 'Alpha' } }],
           },
         },
       }),
@@ -89,16 +66,7 @@ describe('listShopifyCompanies', () => {
         data: {
           companies: {
             pageInfo: { hasNextPage: false, endCursor: null },
-            edges: [
-              {
-                node: {
-                  id: 'gid://shopify/Company/2',
-                  name: 'Bravo',
-                  externalId: null,
-                  locationsCount: { count: 2 },
-                },
-              },
-            ],
+            edges: [{ node: { id: 'gid://shopify/Company/2', name: 'Bravo' } }],
           },
         },
       }),
