@@ -10,10 +10,14 @@ const SHOP_DOMAIN = 'demo.myshopify.com';
 interface ShopRow {
   is_plus: number;
   plus_banner_dismissed_at: number | null;
+  settings_json?: string;
+  exists?: boolean;
 }
 
-function makeEnv(initial: ShopRow): Env {
-  const state: { row: ShopRow } = { row: { ...initial } };
+function makeEnv(initial: ShopRow): { env: Env; state: { row: ShopRow } } {
+  const state: { row: ShopRow } = {
+    row: { settings_json: '{}', exists: true, ...initial },
+  };
 
   const db: D1Database = {
     prepare(sql: string) {
@@ -24,6 +28,10 @@ function makeEnv(initial: ShopRow): Env {
           return stmt;
         },
         async first<T>(): Promise<T | null> {
+          if (sql.includes('SELECT settings_json')) {
+            if (state.row.exists === false) return null;
+            return { settings_json: state.row.settings_json ?? '{}' } as unknown as T;
+          }
           if (sql.includes('SELECT')) {
             return {
               is_plus: state.row.is_plus,
@@ -35,6 +43,9 @@ function makeEnv(initial: ShopRow): Env {
         async run(): Promise<D1Result> {
           if (sql.includes('UPDATE shops SET plus_banner_dismissed_at')) {
             state.row.plus_banner_dismissed_at = bound[0] as number;
+          }
+          if (sql.includes('UPDATE shops SET settings_json')) {
+            state.row.settings_json = bound[0] as string;
           }
           return { success: true, meta: { changes: 1 } } as unknown as D1Result;
         },
@@ -52,7 +63,7 @@ function makeEnv(initial: ShopRow): Env {
     dump: async () => new ArrayBuffer(0),
   } as unknown as D1Database;
 
-  return {
+  const env: Env = {
     DB: db,
     KV_SESSIONS: {} as KVNamespace,
     KV_IDEMPOTENCY: {} as KVNamespace,
@@ -66,6 +77,8 @@ function makeEnv(initial: ShopRow): Env {
     APP_URL: 'https://worker.example.com',
     SHOPIFY_API_VERSION: '2026-04',
   };
+
+  return { env, state };
 }
 
 async function makeSessionToken(secret: string, claims: Record<string, unknown>): Promise<string> {
@@ -123,7 +136,7 @@ function buildApp(env: Env): Hono<{ Bindings: Env }> {
 describe('GET /admin/shop-status', () => {
   let env: Env;
   beforeEach(() => {
-    env = makeEnv({ is_plus: 1, plus_banner_dismissed_at: null });
+    env = makeEnv({ is_plus: 1, plus_banner_dismissed_at: null }).env;
   });
 
   it('401 without Authorization header', async () => {
@@ -164,7 +177,7 @@ describe('GET /admin/shop-status', () => {
 
 describe('POST /admin/plus-banner/dismiss', () => {
   it('401 without Authorization', async () => {
-    const env = makeEnv({ is_plus: 1, plus_banner_dismissed_at: null });
+    const { env } = makeEnv({ is_plus: 1, plus_banner_dismissed_at: null });
     const app = buildApp(env);
     const res = await app.request(
       '/admin/plus-banner/dismiss',
@@ -175,7 +188,7 @@ describe('POST /admin/plus-banner/dismiss', () => {
   });
 
   it('sets plus_banner_dismissed_at and returns ok:true', async () => {
-    const env = makeEnv({ is_plus: 1, plus_banner_dismissed_at: null });
+    const { env } = makeEnv({ is_plus: 1, plus_banner_dismissed_at: null });
     const app = buildApp(env);
     const token = await makeSessionToken(API_SECRET, validClaims());
 
@@ -195,5 +208,152 @@ describe('POST /admin/plus-banner/dismiss', () => {
     );
     expect(res2.status).toBe(200);
     expect(await res2.json()).toEqual({ ok: true });
+  });
+});
+
+describe('GET /admin/settings', () => {
+  it('401 without Authorization', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const app = buildApp(env);
+    const res = await app.request('/admin/settings', {}, env);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns empty admin settings when settings_json is empty', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      { headers: { Authorization: `Bearer ${token}` } },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({});
+  });
+
+  it('returns only admin-settings keys, hiding unrelated blob keys', async () => {
+    const { env } = makeEnv({
+      is_plus: 0,
+      plus_banner_dismissed_at: null,
+      settings_json: JSON.stringify({
+        brand: { primaryColor: '#112233' },
+        app_proxy: { subpath: 'apps/b2b' },
+      }),
+    });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      { headers: { Authorization: `Bearer ${token}` } },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ brand: { primaryColor: '#112233' } });
+  });
+});
+
+describe('PUT /admin/settings', () => {
+  it('401 without Authorization', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const app = buildApp(env);
+    const res = await app.request(
+      '/admin/settings',
+      { method: 'PUT', body: '{}' },
+      env,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects invalid hex colour', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: { primaryColor: 'red' } }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toMatch(/primaryColor/);
+  });
+
+  it('rejects duplicate field ids', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationForm: {
+            requireDocuments: false,
+            fields: [
+              { id: 'name', label: 'Name', type: 'text', required: true },
+              { id: 'name', label: 'Other', type: 'text', required: false },
+            ],
+          },
+        }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('persists valid patch and shallow-merges with unrelated keys', async () => {
+    const { env, state } = makeEnv({
+      is_plus: 0,
+      plus_banner_dismissed_at: null,
+      settings_json: JSON.stringify({ app_proxy: { subpath: 'apps/b2b' } }),
+    });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand: { primaryColor: '#aabbcc', accentColor: '#ddeeff' },
+          emailTemplates: {
+            approved: { subject: 'Welcome', body: 'You are approved' },
+          },
+        }),
+      },
+      env,
+    );
+    expect(res.status).toBe(200);
+
+    const persisted = JSON.parse(state.row.settings_json ?? '{}');
+    expect(persisted.app_proxy).toEqual({ subpath: 'apps/b2b' });
+    expect(persisted.brand).toEqual({ primaryColor: '#aabbcc', accentColor: '#ddeeff' });
+    expect(persisted.emailTemplates.approved.subject).toBe('Welcome');
+  });
+
+  it('404 when the shop does not exist', async () => {
+    const { env } = makeEnv({
+      is_plus: 0,
+      plus_banner_dismissed_at: null,
+      exists: false,
+    });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: { primaryColor: '#000000' } }),
+      },
+      env,
+    );
+    expect(res.status).toBe(404);
   });
 });

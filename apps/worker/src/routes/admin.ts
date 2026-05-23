@@ -2,6 +2,13 @@ import { Hono } from 'hono';
 import type { Env } from '../types.js';
 import { sessionTokenMiddleware } from '../middleware/session-token.js';
 import { log } from '../lib/logger.js';
+import {
+  mergeSettings,
+  parseSettingsBlob,
+  pickAdminSettings,
+  SettingsValidationError,
+  validateAdminSettingsPatch,
+} from '../lib/settings.js';
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
 
@@ -43,4 +50,55 @@ adminRouter.post('/plus-banner/dismiss', async c => {
   log('info', 'admin: plus banner dismissed', { shop: shopDomain });
 
   return c.json({ ok: true });
+});
+
+adminRouter.get('/settings', async c => {
+  const shopDomain = c.get('shopDomain');
+  const row = await c.env.DB.prepare(
+    `SELECT settings_json FROM shops WHERE shopify_domain = ?`,
+  )
+    .bind(shopDomain)
+    .first<{ settings_json: string }>();
+
+  const blob = parseSettingsBlob(row?.settings_json);
+  return c.json(pickAdminSettings(blob));
+});
+
+adminRouter.put('/settings', async c => {
+  const shopDomain = c.get('shopDomain');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid JSON' }, 400);
+  }
+
+  let patch;
+  try {
+    patch = validateAdminSettingsPatch(body);
+  } catch (err) {
+    const message = err instanceof SettingsValidationError ? err.message : 'invalid payload';
+    return c.json({ error: message }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT settings_json FROM shops WHERE shopify_domain = ?`,
+  )
+    .bind(shopDomain)
+    .first<{ settings_json: string }>();
+
+  if (!row) return c.json({ error: 'shop not found' }, 404);
+
+  const merged = mergeSettings(parseSettingsBlob(row.settings_json), patch);
+
+  await c.env.DB.prepare(`UPDATE shops SET settings_json = ? WHERE shopify_domain = ?`)
+    .bind(JSON.stringify(merged), shopDomain)
+    .run();
+
+  log('info', 'admin: settings updated', {
+    shop: shopDomain,
+    keys: Object.keys(patch),
+  });
+
+  return c.json(pickAdminSettings(merged));
 });
