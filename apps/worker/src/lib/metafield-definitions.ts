@@ -64,6 +64,14 @@ export const B2B_METAFIELD_DEFINITIONS: MetafieldDefinitionSpec[] = [
     name: 'B2B Companion: App Proxy Path',
     description: 'Configured App Proxy prefix/subpath, e.g. "apps/b2b"',
   },
+  {
+    namespace: 'b2b',
+    key: 'tiers_config',
+    type: 'json',
+    ownerType: 'SHOP',
+    name: 'B2B Companion: Tiers config',
+    description: 'Full tier set serialised for cart-transform / cart-validation Functions.',
+  },
 ];
 
 interface DefinitionCreateResponse {

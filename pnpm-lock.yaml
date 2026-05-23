@@ -98,6 +98,10 @@ importers:
         version: 4.94.0(@cloudflare/workers-types@4.20260523.1)
 
   extensions/functions/cart-transform:
+    dependencies:
+      '@b2b/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
     devDependencies:
       typescript:
         specifier: ^5.0.0
@@ -107,6 +111,10 @@ importers:
         version: 3.2.4(@types/debug@4.1.13)(@types/node@25.8.0)(yaml@2.9.0)
 
   extensions/functions/cart-validation:
+    dependencies:
+      '@b2b/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
     devDependencies:
       typescript:
         specifier: ^5.0.0
@@ -116,6 +124,10 @@ importers:
         version: 3.2.4(@types/debug@4.1.13)(@types/node@25.8.0)(yaml@2.9.0)
 
   extensions/functions/delivery-customization:
+    dependencies:
+      '@b2b/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
     devDependencies:
       typescript:
         specifier: ^5.0.0

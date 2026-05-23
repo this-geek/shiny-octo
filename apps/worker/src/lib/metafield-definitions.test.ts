@@ -5,8 +5,8 @@ import {
 } from './metafield-definitions.js';
 
 describe('B2B_METAFIELD_DEFINITIONS', () => {
-  it('contains the 7 expected definitions', () => {
-    expect(B2B_METAFIELD_DEFINITIONS).toHaveLength(7);
+  it('contains the 8 expected definitions', () => {
+    expect(B2B_METAFIELD_DEFINITIONS).toHaveLength(8);
     const keys = B2B_METAFIELD_DEFINITIONS.map(d => `${d.namespace}.${d.key}`);
     expect(keys).toContain('b2b.b2b_only');
     expect(keys).toContain('b2b.case_quantity');
@@ -15,6 +15,7 @@ describe('B2B_METAFIELD_DEFINITIONS', () => {
     expect(keys).toContain('b2b.tier_id');
     expect(keys).toContain('b2b.is_plus');
     expect(keys).toContain('b2b.app_proxy_path');
+    expect(keys).toContain('b2b.tiers_config');
   });
 });
 

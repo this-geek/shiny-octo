@@ -9,10 +9,13 @@ import {
   SettingsValidationError,
   validateAdminSettingsPatch,
 } from '../lib/settings.js';
+import { adminTiersRouter } from './admin-tiers.js';
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
 
 adminRouter.use('*', sessionTokenMiddleware);
+
+adminRouter.route('/', adminTiersRouter);
 
 adminRouter.get('/shop-status', async c => {
   const shopDomain = c.get('shopDomain');
