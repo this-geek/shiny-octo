@@ -46,33 +46,31 @@ In the app's **App setup** page:
 
 ### 2.3 Webhook subscriptions
 
-Shopify splits webhooks into two categories with different setup paths.
+All subscriptions — GDPR mandatory and otherwise — are declared in `shopify.app.toml` under `[webhooks.privacy_compliance]` and `[[webhooks.subscriptions]]`. They take effect when you run:
 
-#### GDPR mandatory webhooks (Partner Dashboard)
+```bash
+shopify app deploy
+```
 
-Go to your app → **Configuration** → **GDPR mandatory webhooks**. Set the endpoint URL for each of the three required topics:
+That command pushes the declarations to Shopify and replaces any subscriptions previously held by the Partner Dashboard. Verify with:
 
-| Topic | Endpoint |
+```bash
+shopify app info
+```
+
+The toml currently subscribes:
+
+| Topic | Why |
 |---|---|
-| `customers/data_request` | `https://<your-worker-subdomain>.workers.dev/webhooks` |
-| `customers/redact` | `https://<your-worker-subdomain>.workers.dev/webhooks` |
-| `shop/redact` | `https://<your-worker-subdomain>.workers.dev/webhooks` |
+| `app/uninstalled` | Mark `shops.uninstalled_at` so we stop using the now-revoked token. |
+| `app/scopes_update` | Track scope changes for the re-auth flow. |
+| `shop/update` | Refresh `is_plus` when the merchant changes plan. |
+| `companies/*`, `company_locations/*` | Invalidate the company hot cache. |
+| `customers/create`, `customers/update` | Trigger the wholesale-application linkage. |
+| `orders/create`, `orders/updated`, `orders/cancelled` | Analytics + Day-2 credit tracking. |
+| `customers/data_request`, `customers/redact`, `shop/redact` | GDPR mandatory (under `[webhooks.privacy_compliance]`). |
 
-There is no UI in the Partner Dashboard for any other webhook topics.
-
-#### All other webhooks (registered programmatically)
-
-All non-GDPR webhooks must be registered via the Admin GraphQL API (`webhookSubscriptionCreate` mutation) after OAuth install completes. The post-install handler in `apps/worker/src/routes/oauth.ts` is responsible for registering:
-
-- `app/uninstalled`
-- `shop/update`
-- `companies/create`, `companies/update`, `companies/delete`
-- `company_locations/create`, `company_locations/update`
-- `customers/create`, `customers/update`
-- `orders/create`, `orders/updated`, `orders/cancelled`
-- `app/scopes_update`
-
-> Note: The programmatic registration logic has not been implemented yet — it is part of Phase 0 OAuth completion work.
+Existing installs keep their old subscriptions until you redeploy; new installs pick up whatever is declared in the toml at the time they OAuth.
 
 ### 2.4 App scopes
 
