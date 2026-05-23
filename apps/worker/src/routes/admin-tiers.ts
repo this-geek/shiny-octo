@@ -19,6 +19,8 @@ import {
   enqueueCompanyTierMirror,
   enqueueTiersConfigPublish,
 } from '../lib/internal-jobs.js';
+import { getShopAuth } from '../lib/shop-token.js';
+import { listShopifyCompanies } from '../lib/shopify-companies.js';
 import { log } from '../lib/logger.js';
 
 // Mounted under adminRouter, which applies sessionTokenMiddleware globally.
@@ -121,6 +123,26 @@ adminTiersRouter.delete('/tiers/:id', async c => {
   await enqueueTiersConfigPublish(c.env, shopDomain);
   log('info', 'admin: tier deleted', { shop: shopDomain, tier_id: id });
   return c.json({ ok: true });
+});
+
+adminTiersRouter.get('/shopify-companies', async c => {
+  const shopDomain = c.get('shopDomain');
+  const auth = await getShopAuth(c.env, shopDomain);
+  if (!auth) return c.json({ error: 'shop not found' }, 404);
+  try {
+    const result = await listShopifyCompanies(
+      shopDomain,
+      auth.token,
+      c.env.SHOPIFY_API_VERSION,
+    );
+    return c.json(result);
+  } catch (err) {
+    log('error', 'admin: listShopifyCompanies failed', {
+      shop: shopDomain,
+      error: String(err),
+    });
+    return c.json({ error: 'could not list Shopify companies' }, 502);
+  }
 });
 
 adminTiersRouter.get('/company-mappings', async c => {

@@ -28,9 +28,16 @@ interface Tier {
 }
 
 interface CompanyMapping {
-  company_gid: string;
+  shopify_company_id: string;
   tier_id: number;
   credit_limit: number | null;
+}
+
+interface ShopifyCompany {
+  id: string;
+  name: string;
+  externalId: string | null;
+  locationsCount: number | null;
 }
 
 interface LoaderData {
@@ -65,16 +72,14 @@ async function getIdToken(initial: string | null): Promise<string | null> {
   return initial;
 }
 
-const COMPANY_GID_RE = /^gid:\/\/shopify\/Company\/[0-9]+$/;
-
 interface FormState {
-  company_gid: string;
+  shopify_company_id: string;
   tier_id: string;
   credit_limit: string;
 }
 
 function emptyForm(): FormState {
-  return { company_gid: '', tier_id: '', credit_limit: '' };
+  return { shopify_company_id: '', tier_id: '', credit_limit: '' };
 }
 
 function formatDiscount(t: Tier | undefined): string {
@@ -84,6 +89,11 @@ function formatDiscount(t: Tier | undefined): string {
   return t.discount_value.toFixed(2);
 }
 
+function companyNumericId(gid: string): string {
+  const m = /^gid:\/\/shopify\/Company\/([0-9]+)$/.exec(gid);
+  return m ? m[1] : gid;
+}
+
 export default function Companies() {
   const { workerBase, initialIdToken } = useLoaderData<typeof loader>() as LoaderData;
 
@@ -91,6 +101,9 @@ export default function Companies() {
   const [error, setError] = useState<string | null>(null);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [mappings, setMappings] = useState<CompanyMapping[]>([]);
+  const [companies, setCompanies] = useState<ShopifyCompany[]>([]);
+  const [companiesError, setCompaniesError] = useState<string | null>(null);
+  const [companiesTruncated, setCompaniesTruncated] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyMapping | null>(null);
@@ -103,6 +116,12 @@ export default function Companies() {
     for (const t of tiers) m.set(t.id, t);
     return m;
   }, [tiers]);
+
+  const companiesByGid = useMemo(() => {
+    const m = new Map<string, ShopifyCompany>();
+    for (const c of companies) m.set(c.id, c);
+    return m;
+  }, [companies]);
 
   const fetchAll = useCallback(async (): Promise<void> => {
     if (!workerBase) {
@@ -117,9 +136,12 @@ export default function Companies() {
       return;
     }
     try {
-      const [tiersRes, mappingsRes] = await Promise.all([
+      const [tiersRes, mappingsRes, companiesRes] = await Promise.all([
         fetch(`${workerBase}/admin/tiers`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${workerBase}/admin/company-mappings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${workerBase}/admin/shopify-companies`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -129,6 +151,19 @@ export default function Companies() {
       const mappingsData = (await mappingsRes.json()) as { mappings: CompanyMapping[] };
       setTiers(tiersData.tiers);
       setMappings(mappingsData.mappings);
+
+      if (companiesRes.ok) {
+        const data = (await companiesRes.json()) as {
+          companies: ShopifyCompany[];
+          truncated: boolean;
+        };
+        setCompanies(data.companies);
+        setCompaniesTruncated(data.truncated);
+        setCompaniesError(null);
+      } else {
+        const j = (await companiesRes.json().catch(() => ({}))) as { error?: string };
+        setCompaniesError(j.error ?? `companies HTTP ${companiesRes.status}`);
+      }
       setError(null);
     } catch (err) {
       setError(`Could not load companies: ${String(err)}`);
@@ -143,18 +178,21 @@ export default function Companies() {
 
   const openCreate = useCallback((): void => {
     setEditing(null);
+    const mappedGids = new Set(mappings.map(m => m.shopify_company_id));
+    const firstUnmapped = companies.find(c => !mappedGids.has(c.id));
     setForm({
       ...emptyForm(),
+      shopify_company_id: firstUnmapped?.id ?? companies[0]?.id ?? '',
       tier_id: tiers[0]?.id ? String(tiers[0].id) : '',
     });
     setFormError(null);
     setModalOpen(true);
-  }, [tiers]);
+  }, [tiers, companies, mappings]);
 
   const openEdit = useCallback((mapping: CompanyMapping): void => {
     setEditing(mapping);
     setForm({
-      company_gid: mapping.company_gid,
+      shopify_company_id: mapping.shopify_company_id,
       tier_id: String(mapping.tier_id),
       credit_limit: mapping.credit_limit === null ? '' : String(mapping.credit_limit),
     });
@@ -163,9 +201,9 @@ export default function Companies() {
   }, []);
 
   const onSave = useCallback(async (): Promise<void> => {
-    const gid = form.company_gid.trim();
-    if (!COMPANY_GID_RE.test(gid)) {
-      setFormError('Company GID must look like gid://shopify/Company/123456.');
+    const gid = form.shopify_company_id;
+    if (!/^gid:\/\/shopify\/Company\/[0-9]+$/.test(gid)) {
+      setFormError('Pick a company from the list.');
       return;
     }
     const tier_id = Number.parseInt(form.tier_id, 10);
@@ -175,10 +213,7 @@ export default function Companies() {
     }
     const credit_limit =
       form.credit_limit.trim() === '' ? null : Number(form.credit_limit);
-    if (
-      credit_limit !== null &&
-      (!Number.isFinite(credit_limit) || credit_limit < 0)
-    ) {
+    if (credit_limit !== null && (!Number.isFinite(credit_limit) || credit_limit < 0)) {
       setFormError('Credit limit must be a non-negative number, or blank.');
       return;
     }
@@ -214,9 +249,10 @@ export default function Companies() {
 
   const onDelete = useCallback(
     async (mapping: CompanyMapping): Promise<void> => {
+      const name = companiesByGid.get(mapping.shopify_company_id)?.name ?? mapping.shopify_company_id;
       if (
         typeof window !== 'undefined' &&
-        !window.confirm(`Unmap ${mapping.company_gid}? The Company metafield will be cleared.`)
+        !window.confirm(`Unmap ${name}? The Company metafield will be cleared.`)
       ) {
         return;
       }
@@ -227,7 +263,7 @@ export default function Companies() {
       }
       try {
         const res = await fetch(
-          `${workerBase}/admin/company-mappings/${encodeURIComponent(mapping.company_gid)}`,
+          `${workerBase}/admin/company-mappings/${encodeURIComponent(mapping.shopify_company_id)}`,
           { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -236,13 +272,20 @@ export default function Companies() {
         setError(`Could not delete mapping: ${String(err)}`);
       }
     },
-    [workerBase, initialIdToken, fetchAll],
+    [workerBase, initialIdToken, fetchAll, companiesByGid],
   );
 
   const tierOptions = useMemo(
     () => tiers.map(t => ({ label: t.name, value: String(t.id) })),
     [tiers],
   );
+
+  const companyOptions = useMemo(() => {
+    const mappedGids = editing ? new Set<string>() : new Set(mappings.map(m => m.shopify_company_id));
+    return companies
+      .filter(c => editing?.shopify_company_id === c.id || !mappedGids.has(c.id))
+      .map(c => ({ label: c.name, value: c.id }));
+  }, [companies, mappings, editing]);
 
   if (loading) {
     return (
@@ -256,6 +299,8 @@ export default function Companies() {
   }
 
   const noTiers = tiers.length === 0;
+  const noCompanies = companies.length === 0;
+  const noUnmapped = !noCompanies && companyOptions.length === 0 && editing === null;
 
   return (
     <Page
@@ -264,7 +309,7 @@ export default function Companies() {
       primaryAction={{
         content: 'Map a company',
         onAction: openCreate,
-        disabled: noTiers,
+        disabled: noTiers || noCompanies || noUnmapped,
       }}
     >
       <Layout>
@@ -285,19 +330,36 @@ export default function Companies() {
           </Layout.Section>
         ) : null}
 
+        {companiesError ? (
+          <Layout.Section>
+            <Banner tone="warning" onDismiss={() => setCompaniesError(null)}>
+              <p>
+                Could not load Shopify companies: {companiesError}. You can still see
+                existing mappings below, but adding a new one needs this list.
+              </p>
+            </Banner>
+          </Layout.Section>
+        ) : null}
+
+        {companiesTruncated ? (
+          <Layout.Section>
+            <Banner tone="info">
+              <p>
+                Showing the first 1,000 companies from your store. If the one you want is
+                missing, narrow the list in Shopify admin or contact support.
+              </p>
+            </Banner>
+          </Layout.Section>
+        ) : null}
+
         <Layout.Section>
           <Card>
             <BlockStack gap="200">
               <Text as="p" tone="subdued">
                 Companies, Locations, Catalogs and payment terms remain Shopify&apos;s native
-                objects. This page maps a Shopify Company GID to a B2B Companion tier — every
+                objects. This page maps a Shopify Company to a B2B Companion tier — every
                 save mirrors <code>b2b.tier_id</code> onto the Company metafield for the
                 cart-transform Function.
-              </Text>
-              <Text as="p" tone="subdued">
-                Copy the Company GID from Shopify admin: open the company and look at the URL
-                (<code>/companies/123456</code>) — the GID is{' '}
-                <code>gid://shopify/Company/123456</code>.
               </Text>
             </BlockStack>
           </Card>
@@ -309,7 +371,7 @@ export default function Companies() {
               <EmptyState
                 heading="No company mappings yet"
                 action={
-                  noTiers
+                  noTiers || noCompanies
                     ? undefined
                     : { content: 'Map your first company', onAction: openCreate }
                 }
@@ -326,7 +388,7 @@ export default function Companies() {
                 itemCount={mappings.length}
                 selectable={false}
                 headings={[
-                  { title: 'Company GID' },
+                  { title: 'Company' },
                   { title: 'Tier' },
                   { title: 'Discount' },
                   { title: 'Credit limit' },
@@ -335,10 +397,23 @@ export default function Companies() {
               >
                 {mappings.map((mapping, index) => {
                   const tier = tiersById.get(mapping.tier_id);
+                  const company = companiesByGid.get(mapping.shopify_company_id);
+                  const numericId = companyNumericId(mapping.shopify_company_id);
                   return (
-                    <IndexTable.Row id={mapping.company_gid} key={mapping.company_gid} position={index}>
+                    <IndexTable.Row
+                      id={mapping.shopify_company_id}
+                      key={mapping.shopify_company_id}
+                      position={index}
+                    >
                       <IndexTable.Cell>
-                        <Text as="span" truncate>{mapping.company_gid}</Text>
+                        <BlockStack gap="050">
+                          <Text as="span" fontWeight="medium">
+                            {company?.name ?? `Company ${numericId}`}
+                          </Text>
+                          <Text as="span" tone="subdued" variant="bodySm">
+                            {`#${numericId}`}
+                          </Text>
+                        </BlockStack>
                       </IndexTable.Cell>
                       <IndexTable.Cell>
                         {tier ? (
@@ -382,6 +457,7 @@ export default function Companies() {
           content: editing === null ? 'Map' : 'Save',
           onAction: () => void onSave(),
           loading: saving,
+          disabled: companyOptions.length === 0,
         }}
         secondaryActions={[{ content: 'Cancel', onAction: () => setModalOpen(false) }]}
       >
@@ -389,15 +465,29 @@ export default function Companies() {
           <BlockStack gap="400">
             {formError ? <Banner tone="critical">{formError}</Banner> : null}
             <FormLayout>
-              <TextField
-                label="Company GID"
-                value={form.company_gid}
-                onChange={v => setForm({ ...form, company_gid: v })}
-                autoComplete="off"
-                disabled={editing !== null}
-                requiredIndicator
-                helpText="From Shopify admin URL: gid://shopify/Company/<numeric id>"
-              />
+              {editing === null ? (
+                <Select
+                  label="Company"
+                  options={companyOptions}
+                  value={form.shopify_company_id}
+                  onChange={v => setForm({ ...form, shopify_company_id: v })}
+                  helpText={
+                    companyOptions.length === 0
+                      ? 'Every company is already mapped. Edit an existing row instead.'
+                      : `${companyOptions.length} unmapped compan${companyOptions.length === 1 ? 'y' : 'ies'} available.`
+                  }
+                />
+              ) : (
+                <TextField
+                  label="Company"
+                  value={
+                    companiesByGid.get(editing.shopify_company_id)?.name ?? editing.shopify_company_id
+                  }
+                  onChange={() => {}}
+                  autoComplete="off"
+                  disabled
+                />
+              )}
               <Select
                 label="Tier"
                 options={tierOptions}
