@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "remix vite:dev",
     "build": "remix vite:build",
-    "start": "wrangler pages dev ./build/client",
-    "deploy": "wrangler pages deploy ./build/client --project-name=b2b-companion-admin",
+    "pages:dev": "wrangler pages dev ./build/client",
+    "pages:deploy": "wrangler pages deploy ./build/client --project-name=b2b-companion-admin",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx"
   },

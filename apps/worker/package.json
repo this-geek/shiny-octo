@@ -8,7 +8,7 @@
     "build": "wrangler deploy --dry-run --outdir=dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "deploy": "wrangler deploy"
+    "wrangler:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@b2b/shared": "workspace:*",
