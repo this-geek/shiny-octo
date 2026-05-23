@@ -67,8 +67,6 @@ In **App setup → API access**, confirm the following scopes are requested:
 ```
 read_customers, write_customers, read_products, write_products,
 read_orders, write_orders, read_companies, write_companies,
-read_company_locations, write_company_locations,
-read_companies_buyer_experience_configurations,
 read_files, write_files, read_themes, write_themes, read_locales,
 read_payment_terms, write_payment_terms, read_markets,
 read_shipping, write_shipping
