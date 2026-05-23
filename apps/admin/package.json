@@ -7,7 +7,7 @@
     "dev": "remix vite:dev",
     "build": "remix vite:build",
     "pages:dev": "wrangler pages dev ./build/client",
-    "pages:deploy": "wrangler pages deploy ./build/client --project-name=b2b-companion-admin",
+    "pages:deploy": "remix vite:build && wrangler pages deploy ./build/client --project-name=b2b-companion-admin --branch=main",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx"
   },
