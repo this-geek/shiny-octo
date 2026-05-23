@@ -1,0 +1,21 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "B2B Delivery Customization"
+handle = "b2b-delivery-customization"
+type = "function"
+
+  [extensions.build]
+  command = ""
+  path = "dist/index.js"
+  watch = ["src/**/*.ts"]
+
+  [extensions.ui]
+  enable_create = false
+
+  [extensions.targeting]
+  target = "purchase.delivery-customization.run"
+  input_query = "input.graphql"
+  export = "run"
+
+# Function reads the Shop-level metafield b2b.is_plus to early-return on Plus shops.

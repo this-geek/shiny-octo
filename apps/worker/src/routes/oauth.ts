@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import type { Env } from '../types.js';
 import { encrypt } from '../lib/crypto.js';
 import { log } from '../lib/logger.js';
+import { setShopMetafield } from '../lib/shop-metafields.js';
+import { ensureMetafieldDefinitions } from '../lib/metafield-definitions.js';
 
 const SCOPES = [
   'read_customers',
@@ -262,6 +264,21 @@ oauthRouter.get('/callback', async c => {
 
   log('info', 'Shop installed / re-installed', { shop, is_plus: isPlus });
 
-  // 7. Redirect to app in admin
+  // 7. Ensure metafield definitions exist (idempotent — TAKEN errors are swallowed).
+  try {
+    await ensureMetafieldDefinitions(shop, token, c.env.SHOPIFY_API_VERSION);
+  } catch (err) {
+    log('warn', 'metafield definitions ensure failed', { shop, error: String(err) });
+  }
+
+  // 8. Mirror is_plus + app_proxy_path to Shop metafields so Functions can read them.
+  try {
+    await setShopMetafield(shop, token, c.env.SHOPIFY_API_VERSION, 'b2b', 'is_plus', 'boolean', isPlus ? 'true' : 'false');
+    await setShopMetafield(shop, token, c.env.SHOPIFY_API_VERSION, 'b2b', 'app_proxy_path', 'single_line_text_field', 'apps/b2b');
+  } catch (err) {
+    log('warn', 'shop metafield mirror failed', { shop, error: String(err) });
+  }
+
+  // 9. Redirect to app in admin
   return c.redirect(`https://${shop}/admin/apps/${c.env.SHOPIFY_API_KEY}`);
 });

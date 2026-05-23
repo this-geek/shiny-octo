@@ -35,17 +35,17 @@ theme, by a real buyer who applied, was approved, saw correct tier pricing,
 downloaded an asset, and was warned at a minimum-order violation.
 
 ### 1A — Plus detection & shop record
-- [ ] **P0** Read `shop.plan.shopifyPlus` on install and `shop/update`; persist `shops.is_plus`.
-- [ ] **P0** Admin one-time banner explaining deactivated features when `is_plus = 1`.
-- [ ] **P0** All Functions early-return when `is_plus = 1`.
+- [x] **P0** Read `shop.plan.shopifyPlus` on install and `shop/update`; persist `shops.is_plus`.
+- [x] **P0** Admin one-time banner explaining deactivated features when `is_plus = 1`.
+- [x] **P0** All Functions early-return when `is_plus = 1`.
 
 ### 1B — §4.1 Gated catalog & price visibility
-- [ ] **P0** Define `b2b.b2b_only` product metafield via metafield definitions API.
-- [ ] **P0** Theme App Embed Block: Liquid-rendered hide of price/CTA + tier-aware price refinement.
-- [ ] **P0** Product template variant that 404s on `b2b.b2b_only == true` when `customer.b2b?` is false (per DECISIONS #6).
-- [ ] **P0** Search & Discovery metafield filter recipe documented in admin onboarding.
-- [ ] **P0** App Proxy `/tier-context` endpoint returns buyer tier + discount; UX-only cache in localStorage with 5-min TTL (per DECISIONS #10).
-- [ ] **P0** Acceptance tests: direct-URL guard, no FOUC, ≤500ms post-login reveal, Dawn + Horizon + Impulse + Prestige.
+- [x] **P0** Define `b2b.b2b_only` product metafield via metafield definitions API.
+- [x] **P0** Theme App Embed Block: Liquid-rendered hide of price/CTA + tier-aware price refinement.
+- [x] **P0** Product template variant that 404s on `b2b.b2b_only == true` when `customer.b2b?` is false (per DECISIONS #6).
+- [x] **P0** Search & Discovery metafield filter recipe documented in admin onboarding.
+- [x] **P0** App Proxy `/tier-context` endpoint returns buyer tier + discount; UX-only cache in localStorage with 5-min TTL (per DECISIONS #10).
+- [ ] **P0** Acceptance tests: direct-URL guard, no FOUC, ≤500ms post-login reveal, Dawn + Horizon + Impulse + Prestige. *(Deferred: requires Playwright + theme environment; tracked separately.)*
 
 ### 1C — §4.4 Dealer asset portal (the wedge)
 - [ ] **P0** R2 layout `shops/<shop_id>/assets/<asset_id>/<variant>` (per DECISIONS #3).

@@ -120,7 +120,17 @@ export async function verifySessionToken(
 }
 
 /**
+ * Extract the shop domain from a session-token payload's `dest` claim.
+ * `dest` is the canonical shop URL (https://example.myshopify.com); we strip
+ * the protocol so callers can scope D1/KV lookups by `shopify_domain`.
+ */
+export function shopDomainFromPayload(payload: SessionTokenPayload): string {
+  return new URL(payload.dest).hostname;
+}
+
+/**
  * Hono middleware for admin routes that require a valid App Bridge session token.
+ * On success, attaches the decoded payload + shop_domain to c.var.
  * Usage: app.use('/admin/*', sessionTokenMiddleware)
  */
 export function sessionTokenMiddleware(c: Context<{ Bindings: Env }>, next: Next): Promise<Response | void> {
@@ -130,6 +140,17 @@ export function sessionTokenMiddleware(c: Context<{ Bindings: Env }>, next: Next
   }
   const token = authHeader.slice(7);
   return verifySessionToken(token, c.env.SHOPIFY_API_KEY, c.env.SHOPIFY_API_SECRET)
-    .then(() => next())
+    .then(payload => {
+      c.set('sessionPayload', payload);
+      c.set('shopDomain', shopDomainFromPayload(payload));
+      return next();
+    })
     .catch(() => c.text('Unauthorized', 401));
+}
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    sessionPayload: SessionTokenPayload;
+    shopDomain: string;
+  }
 }

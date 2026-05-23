@@ -83,6 +83,42 @@ importers:
         specifier: ^3.0.0
         version: 3.114.17(@cloudflare/workers-types@4.20260517.1)
 
+  extensions/functions/cart-transform:
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@25.8.0)
+
+  extensions/functions/cart-validation:
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@25.8.0)
+
+  extensions/functions/delivery-customization:
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@25.8.0)
+
+  extensions/theme-app-extension:
+    devDependencies:
+      '@b2b/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@25.8.0)
+
   packages/shared:
     devDependencies:
       typescript:

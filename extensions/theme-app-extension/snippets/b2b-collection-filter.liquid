@@ -1,0 +1,26 @@
+{%- comment -%}
+  b2b-collection-filter.liquid — Collection-listing recipe
+
+  We can't intercept Shopify's Search & Discovery collection results
+  server-side from a theme app extension. This snippet ships a CSS fallback
+  that hides product cards carrying the data-b2b-only="true" attribute when
+  the visitor is not a B2B customer. Merchants are also instructed (in
+  MANUAL_STEPS.md "Phase 1B") to add a Search & Discovery metafield filter
+  rule excluding b2b.b2b_only == true from collection results — that filter
+  is the primary defence; this CSS is belt-and-braces for themes that don't
+  honour the filter.
+
+  Usage: render in theme.liquid's <head> (or wherever global CSS is included).
+  Theme integrators wire each collection-card to set data-b2b-only="..." from
+  the per-product metafield.
+{%- endcomment -%}
+{%- assign customer_is_b2b = false -%}
+{%- if customer and customer.b2b? -%}
+  {%- assign customer_is_b2b = true -%}
+{%- endif -%}
+
+{%- unless customer_is_b2b -%}
+  <style>
+    [data-b2b-only="true"] { display: none !important; }
+  </style>
+{%- endunless -%}

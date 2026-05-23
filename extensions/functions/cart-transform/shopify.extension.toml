@@ -1,0 +1,26 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "B2B Cart Transform"
+handle = "b2b-cart-transform"
+type = "function"
+
+  [extensions.build]
+  command = ""
+  path = "dist/index.js"
+  watch = ["src/**/*.ts"]
+
+  [extensions.ui]
+  enable_create = false
+
+  [extensions.input.variables]
+  namespace = "b2b"
+  key = "function_input"
+
+  [extensions.targeting]
+  target = "purchase.cart-transform.run"
+  input_query = "input.graphql"
+  export = "run"
+
+# Function reads the Shop-level metafield b2b.is_plus to early-return on Plus shops.
+# Configure via the Shopify CLI: shopify app function metafields add
