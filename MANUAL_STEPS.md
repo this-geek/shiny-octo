@@ -391,10 +391,12 @@ wrangler pages secret put SHOPIFY_API_KEY --project-name=b2b-companion-admin
 
 ```bash
 cd apps/admin
-pnpm build && pnpm deploy
+pnpm build && pnpm pages:deploy
 ```
 
 Wrangler prints the deployed URL, e.g. `https://b2b-companion-admin.pages.dev`.
+
+> **Note:** the script is `pages:deploy` (not `deploy`) because pnpm 8+ reserves the bare word `pnpm deploy` for its own workspace-deploy command and it cannot be overridden by a package script. Same reason `pages:dev` (local emulator) is namespaced rather than `start`.
 
 ### 11.3 Update Partner dashboard URLs
 
