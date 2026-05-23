@@ -1,0 +1,7 @@
+# frame-ancestors only works as a real HTTP header; the <meta> equivalent is ignored by browsers.
+/*
+  Content-Security-Policy: frame-ancestors https://*.myshopify.com https://admin.shopify.com
+  X-Frame-Options: ALLOW-FROM https://admin.shopify.com
+  Permissions-Policy: ()
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff

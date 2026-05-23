@@ -369,3 +369,69 @@ As a CSS-level fallback for themes that don't apply the metafield filter consist
 - [ ] Tier-price refinement completes within 500ms of login on a cached page load.
 - [ ] Collection pages do not surface B2B-only product cards to guests.
 - [ ] Search & Discovery search results do not surface B2B-only products to guests.
+
+---
+
+## 11. Deploying the Embedded Admin (Cloudflare Pages)
+
+The Worker remains the OAuth + webhook + `/admin/*` API host. The Pages project is the embedded admin UI loaded by Shopify in the merchant's admin iframe.
+
+### 11.1 One-time setup
+
+```bash
+cd apps/admin
+pnpm build
+wrangler pages project create b2b-companion-admin --production-branch=main
+wrangler pages secret put SHOPIFY_API_KEY --project-name=b2b-companion-admin
+```
+
+`SHOPIFY_API_KEY` is the same Client ID used by the Worker — App Bridge needs it client-side so the `<meta name="shopify-api-key">` tag in `root.tsx` resolves to a real value.
+
+### 11.2 Deploy
+
+```bash
+cd apps/admin
+pnpm build && pnpm deploy
+```
+
+Wrangler prints the deployed URL, e.g. `https://b2b-companion-admin.pages.dev`.
+
+### 11.3 Update Partner dashboard URLs
+
+In the app's **App setup** page:
+
+| Field | New value |
+|---|---|
+| App URL | `https://b2b-companion-admin.pages.dev/` |
+| Allowed redirection URL(s) | `https://<your-worker-subdomain>.workers.dev/auth/callback` (unchanged — OAuth stays on the Worker) |
+| App Proxy → Proxy URL | `https://<your-worker-subdomain>.workers.dev/proxy` (unchanged — Phase 1B) |
+
+Install flow after this change: Shopify → `<worker>/auth?shop=...` → OAuth callback → redirect to `https://{shop}/admin/apps/{api_key}` → Shopify loads `<pages>/?host=...&shop=...&embedded=1&id_token=...` in the iframe.
+
+### 11.4 Worker `APP_URL`
+
+Change `apps/worker/wrangler.toml`:
+
+```toml
+[vars]
+APP_URL = "https://b2b-companion-admin.pages.dev"
+```
+
+Redeploy the Worker so the OAuth callback final-redirects to the Pages URL.
+
+### 11.5 Worker CORS
+
+The Pages site fetches `<worker>/admin/*` from Remix server-side loaders/actions, so there is no browser CORS preflight today. If you ever call the Worker from client-side JS in the Pages app, add CORS headers to the Worker (`Access-Control-Allow-Origin: https://b2b-companion-admin.pages.dev`, plus `Authorization` in `Allow-Headers`).
+
+### 11.6 Deferred
+
+- Full App Bridge React provider wiring (`<Provider>` + `useAppBridge()` token refresh on every loader). The CDN script + `<meta name="shopify-api-key">` is the minimum Shopify needs to treat this as a valid embedded app; the loader currently reads `id_token` from the URL search params, which is fine for the initial render but won't survive token expiry.
+
+### 11.7 Verify checklist
+
+- [ ] `https://b2b-companion-admin.pages.dev/?shop=test.myshopify.com&host=dGVzdA` returns 200 with a Polaris page (no real data without a valid `id_token`).
+- [ ] Install from the Partner dashboard → after OAuth, the embedded iframe loads the Pages site without `X-Frame-Options` blocking it.
+- [ ] For Plus shops, the Plus banner appears; dismissing it persists.
+- [ ] DevTools → Network → admin loader request shows `Authorization: Bearer <id_token>` going to the Worker URL.
+- [ ] Response headers on the Pages document include `Content-Security-Policy: frame-ancestors https://*.myshopify.com https://admin.shopify.com`.
+
