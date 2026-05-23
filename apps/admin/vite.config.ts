@@ -4,6 +4,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [
     remix({
+      serverBuildFile: 'index.js',
+      serverModuleFormat: 'esm',
       future: {
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,

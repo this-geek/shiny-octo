@@ -1,0 +1,8 @@
+name = "b2b-companion-admin"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./build/client"
+
+[vars]
+WORKER_URL = "https://b2b-companion.selling.workers.dev"
+# Secrets via `wrangler pages secret put <NAME> --project-name=b2b-companion-admin`:
+#   SHOPIFY_API_KEY  (used by App Bridge bootstrap)

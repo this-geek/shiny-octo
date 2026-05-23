@@ -6,11 +6,14 @@
   "scripts": {
     "dev": "remix vite:dev",
     "build": "remix vite:build",
+    "start": "wrangler pages dev ./build/client",
+    "deploy": "wrangler pages deploy ./build/client --project-name=b2b-companion-admin",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
     "@remix-run/cloudflare": "^2.0.0",
+    "@remix-run/cloudflare-pages": "^2.0.0",
     "@remix-run/react": "^2.0.0",
     "@shopify/app-bridge-react": "^4.0.0",
     "@shopify/polaris": "^13.0.0",
@@ -23,6 +26,7 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "typescript": "^5.0.0",
-    "vite": "^6.4.2"
+    "vite": "^6.4.2",
+    "wrangler": "^4.0.0"
   }
 }
