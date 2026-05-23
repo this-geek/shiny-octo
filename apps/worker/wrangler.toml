@@ -6,19 +6,19 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "b2b-companion"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "f707deef-4409-486d-b113-e9a6fd0d4c34"
 
 [[kv_namespaces]]
 binding = "KV_SESSIONS"
-id = "REPLACE_WITH_KV_SESSIONS_ID"
+id = "c6bd96203e744e5894c2a600612cb7a9"
 
 [[kv_namespaces]]
 binding = "KV_IDEMPOTENCY"
-id = "REPLACE_WITH_KV_IDEMPOTENCY_ID"
+id = "a07ba7a527c845388490ee488ce4892d"
 
 [[kv_namespaces]]
 binding = "KV_HOT_CACHE"
-id = "REPLACE_WITH_KV_HOT_CACHE_ID"
+id = "04f2ee6fc38a4bd9aaa2b7192db7cb58"
 
 [[r2_buckets]]
 binding = "ASSETS_BUCKET"
@@ -34,7 +34,7 @@ max_batch_size = 10
 max_batch_timeout = 5
 
 [vars]
-APP_URL = "https://REPLACE_WITH_YOUR_WORKER_URL"
+APP_URL = "https://b2b-companion.your-subdomain.workers.dev"
 SHOPIFY_API_VERSION = "2025-04"
 
 # Secrets (set via: wrangler secret put SHOPIFY_API_KEY)
