@@ -146,6 +146,48 @@ adminTiersRouter.get('/shopify-companies', async c => {
   }
 });
 
+adminTiersRouter.get('/token-health', async c => {
+  const shopDomain = c.get('shopDomain');
+  const auth = await getShopAuth(c.env, shopDomain);
+  if (!auth) {
+    return c.json({ shop: shopDomain, row: 'missing', token: null, shopify: null }, 200);
+  }
+  const tokenInfo = {
+    length: auth.token.length,
+    prefix: auth.token.slice(0, 6),
+    looksLikeShopifyToken: auth.token.startsWith('shpat_') || auth.token.startsWith('shpca_'),
+  };
+  try {
+    const res = await fetch(
+      `https://${shopDomain}/admin/api/${c.env.SHOPIFY_API_VERSION}/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': auth.token,
+        },
+        body: JSON.stringify({ query: '{ shop { name myshopifyDomain } }' }),
+      },
+    );
+    const bodyText = await res.text();
+    return c.json({
+      shop: shopDomain,
+      row: 'present',
+      token: tokenInfo,
+      shopify: { status: res.status, body: bodyText.slice(0, 500) },
+      reinstallUrl: `${c.env.APP_URL}/auth?shop=${shopDomain}`,
+    });
+  } catch (err) {
+    return c.json({
+      shop: shopDomain,
+      row: 'present',
+      token: tokenInfo,
+      shopify: { error: String(err) },
+      reinstallUrl: `${c.env.APP_URL}/auth?shop=${shopDomain}`,
+    });
+  }
+});
+
 adminTiersRouter.get('/company-mappings', async c => {
   const shopDomain = c.get('shopDomain');
   const shopId = await resolveShopId(c.env, shopDomain);
