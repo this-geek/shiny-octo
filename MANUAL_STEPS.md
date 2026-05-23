@@ -304,3 +304,68 @@ Before starting Phase 1, confirm the following facts about the pilot merchant wi
 2. Get read access to their Shopify admin to audit their existing Companies/Catalogs/Customers.
 3. Confirm their Dawn theme version and whether they use any apps that might conflict with our Theme App Extension.
 4. Agree on the pilot launch date and the first set of test B2B customers.
+
+---
+
+## 10. Phase 1B: Gated catalog setup
+
+These steps complete the §4.1 gated-catalog feature for one merchant. Required after the Phase 1B Worker code is deployed.
+
+### 10.1 Configure the App Proxy
+
+Required so the storefront can call `/tier-context` and future buyer endpoints under the merchant's own domain.
+
+In Partner Dashboard → your app → **App setup → App Proxy**:
+
+| Field | Value |
+|---|---|
+| Subpath prefix | `apps` |
+| Subpath | `b2b` *(or the merchant's preferred subpath — Worker reads it back from `shops.settings_json.app_proxy.subpath`, DECISIONS #9)* |
+| Proxy URL | `https://<your-worker-subdomain>.workers.dev/proxy` |
+
+Shopify will forward `/apps/b2b/*` on the storefront to `https://<worker>/proxy/*` and append the signed `signature` query parameter. The Worker's `appProxyMiddleware` verifies it.
+
+The Shop metafield `b2b.app_proxy_path` is written automatically on install with the default value `apps/b2b`. If you change the subpath above, update the metafield to match (the storefront JS uses it to build the fetch URL).
+
+### 10.2 Add the product-template 404 guard snippet
+
+DECISIONS #6 requires that direct URLs to B2B-only products 404 for guests. The Theme App Embed Block alone cannot do this — only the product template can. Edit the merchant's theme:
+
+1. In Shopify admin → **Online Store → Themes → Edit code**.
+2. Open `templates/product.liquid` (or, for OS 2.0 themes, the JSON template's referenced section).
+3. Add this as the **first non-comment line** in the file (above any `<section>` tags or `{%- render %}` calls):
+
+```liquid
+{% render 'b2b-product-guard' %}
+```
+
+The snippet ships with our Theme App Extension under `snippets/b2b-product-guard.liquid`.
+
+### 10.3 Search & Discovery collection filter recipe
+
+We can't filter collection results server-side from a theme app extension. The primary defence is a Search & Discovery filter rule:
+
+1. Install the **Shopify Search & Discovery** app (free, by Shopify) on the merchant store.
+2. Open Search & Discovery → **Filters → Add filter**.
+3. Choose **Metafield**, select `b2b.b2b_only` (boolean).
+4. Set the filter to **Hide values: true** for the merchant's Online Store sales channel.
+5. Verify on a collection page: B2B-only products no longer appear in the grid for guests.
+
+As a CSS-level fallback for themes that don't apply the metafield filter consistently, include the snippet `b2b-collection-filter.liquid` once in `theme.liquid`'s `<head>`. It hides collection cards carrying `data-b2b-only="true"` when the visitor is not a B2B customer.
+
+### 10.4 Enable the Theme App Embed Block
+
+1. In Shopify admin → **Online Store → Themes → Customize**.
+2. Open the **App embeds** panel (left rail, puzzle icon).
+3. Enable **B2B Tier Price**.
+4. Save the theme.
+
+### 10.5 Verify checklist (Phase 1B acceptance — manual)
+
+- [ ] A B2B-only product 404s when visited via direct URL while logged out.
+- [ ] The same product 404s when visited as a non-B2B logged-in customer.
+- [ ] The same product renders normally with discounted price when visited as an approved B2B buyer.
+- [ ] No price FOUC on any of Dawn, Horizon, Impulse, Prestige (open DevTools → Network → throttling Fast 3G).
+- [ ] Tier-price refinement completes within 500ms of login on a cached page load.
+- [ ] Collection pages do not surface B2B-only product cards to guests.
+- [ ] Search & Discovery search results do not surface B2B-only products to guests.

@@ -1,19 +1,24 @@
 /**
  * cart-validation Shopify Function — Phase 1 implementation
  *
- * Validates that the cart meets the buyer's tier minimums before checkout:
- *   - min_order_value: minimum discounted cart total
- *   - min_order_units: minimum total quantity of tier-eligible items
- *   - step_quantity / case_quantity: per-line quantity increments (from product metafields)
- *
- * Returns a list of validation errors displayed in the Shopify checkout UI.
- * An empty errors array means the cart is valid.
+ * Plus-mode invariant (DECISIONS / §3): when the shop is on Shopify Plus we
+ * never block checkout. See cart-transform for the same gate.
  *
  * TODO Phase 1D: Implement full validation logic using validateOrderMinimums
  * from @b2b/shared, reading tier data from the cart's buyer identity context.
  */
 
-export function run(_input: unknown): unknown {
-  // TODO: Phase 1D implementation
+export interface FunctionInput {
+  shop: { metafield: { value: string } | null };
+}
+
+export interface FunctionResult {
+  errors: unknown[];
+}
+
+export function run(input: FunctionInput): FunctionResult {
+  if (input.shop.metafield?.value === 'true') {
+    return { errors: [] };
+  }
   return { errors: [] };
 }

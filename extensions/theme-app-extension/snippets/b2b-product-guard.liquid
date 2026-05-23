@@ -1,0 +1,14 @@
+{%- comment -%}
+  DECISIONS #6: 404 when product.metafields.b2b.b2b_only is true AND
+  customer is not B2B. Include this snippet at the very top of templates/product.liquid.
+
+  Merchant must add `{% render 'b2b-product-guard' %}` as the first non-comment
+  line of templates/product.liquid (or product.json's section equivalent). The
+  Theme App Embed Block alone cannot guarantee 404 because Liquid renders the
+  rest of the template regardless of the embed block's CSS hide. See
+  MANUAL_STEPS.md "Phase 1B: Gated catalog setup".
+{%- endcomment -%}
+{%- if product.metafields.b2b.b2b_only and customer.b2b? != true -%}
+  {%- layout none -%}
+  {{ '404' | url_for | redirect_to }}
+{%- endif -%}

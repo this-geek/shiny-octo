@@ -1,39 +1,44 @@
 {% comment %}
-  b2b-price.liquid — Theme App Extension App Block
-  Phase 1B implementation
+  b2b-price.liquid — Theme App Embed Block (Phase 1B)
 
-  This block renders the tier-discounted price alongside (or replacing) the
-  standard Shopify price on product pages. It reads the buyer's cached tier
-  from localStorage (set after login by the storefront JS module) and applies
-  the discount client-side for instant display.
+  Renders the tier-discounted price client-side via assets/b2b-price.js. The
+  block exposes the data the JS needs as data-* attributes; no inline scripts
+  (CSP per §9 of the requirements). The discount math itself lives in
+  assets/b2b-price.js and mirrors packages/shared/src/pricing.ts; the Phase 1D
+  parity test asserts they cannot drift.
 
-  IMPORTANT — Security invariant (see DECISIONS #10):
-  The localStorage tier cache is for UX only. It provides instant price
-  display on subsequent page loads WITHOUT a server round-trip. The actual
-  discount is always applied server-side by the cart-transform Shopify Function,
-  which re-resolves the tier from the Company metafield on every request.
-  Never use the localStorage cache to gate access or make authorization decisions.
-
-  TODO Phase 1B:
-  - Read tier_id from localStorage key 'b2b_tier'
-  - Fetch tier discount config from App Proxy (/apps/b2b/tier?id=...)
-  - Render discounted price with tier badge
-  - Handle loading state and missing/expired cache gracefully
-  - Respect CSP — no inline scripts; all JS in assets/b2b-price.js
+  Liquid-side hide for `b2b_only` products: when the product carries the
+  metafield b2b.b2b_only == true and the customer is not B2B, we render a
+  server-side <style> rule that hides the .product-form and .price selectors
+  (Dawn + most modern themes). This is defence-in-depth alongside the
+  template-level 404 guard in snippets/b2b-product-guard.liquid (DECISIONS #6).
 {% endcomment %}
 
+{%- assign b2b_only = product.metafields.b2b.b2b_only -%}
+{%- assign customer_is_b2b = false -%}
+{%- if customer and customer.b2b? -%}
+  {%- assign customer_is_b2b = true -%}
+{%- endif -%}
+
+{%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
+
+{%- if b2b_only and customer_is_b2b == false -%}
+  <style>
+    .product-form, .product__price, .price, .product-form__buttons { display: none !important; }
+  </style>
+{%- endif -%}
+
 <div
-  class="b2b-price-block"
   data-b2b-price-block
   data-product-id="{{ product.id }}"
   data-variant-id="{{ product.selected_or_first_available_variant.id }}"
-  data-base-price="{{ product.selected_or_first_available_variant.price }}"
->
-  {%- comment -%}
-    Populated by assets/b2b-price.js after reading the tier from localStorage.
-    Falls back gracefully to empty when no B2B session is active.
-  {%- endcomment -%}
-</div>
+  data-base-price-cents="{{ product.selected_or_first_available_variant.price }}"
+  data-b2b-only="{% if b2b_only %}true{% else %}false{% endif %}"
+  data-customer-is-b2b="{% if customer_is_b2b %}true{% else %}false{% endif %}"
+  data-app-proxy-path="{{ app_proxy_path }}"
+></div>
+
+{{ 'b2b-price.js' | asset_url | script_tag }}
 
 {% schema %}
 {

@@ -1,6 +1,7 @@
 import type { Env } from '../types.js';
 import { decrypt } from '../lib/crypto.js';
 import { log } from '../lib/logger.js';
+import { setShopMetafield } from '../lib/shop-metafields.js';
 
 interface ShopPlanGqlResponse {
   data?: {
@@ -105,4 +106,22 @@ export async function shopUpdateHandler(shopDomain: string, env: Env): Promise<v
     .run();
 
   log('info', 'shop/update: updated is_plus', { shop: shopDomain, is_plus: isPlus });
+
+  // Mirror to the Shop metafield Functions read on every cart run.
+  try {
+    await setShopMetafield(
+      shopDomain,
+      token,
+      env.SHOPIFY_API_VERSION,
+      'b2b',
+      'is_plus',
+      'boolean',
+      isPlus ? 'true' : 'false',
+    );
+  } catch (err) {
+    log('warn', 'shop/update: failed to mirror is_plus to Shop metafield', {
+      shop: shopDomain,
+      error: String(err),
+    });
+  }
 }
