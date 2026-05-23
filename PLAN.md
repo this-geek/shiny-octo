@@ -91,8 +91,8 @@ downloaded an asset, and was warned at a minimum-order violation.
 - [ ] **P0** Acceptance test: rates don't leak across tiers; threshold excludes tax + discount.
 
 ### 1H — §4.7 Admin foundation
-- [ ] **P0** Routes: `/onboarding`, `/companies`, `/applications`, `/tiers`, `/assets`, `/settings`, `/analytics` (stub).
-- [ ] **P0** Settings: brand colours, application form builder, email templates.
+- [x] **P0** Routes: `/onboarding`, `/companies`, `/applications`, `/tiers`, `/assets`, `/settings`, `/analytics` (stub). *(Stub Polaris empty states with App Bridge `<ui-nav-menu>` wired in `root.tsx`.)*
+- [x] **P0** Settings: brand colours, application form builder, email templates. *(Stored in `shops.settings_json` via `GET/PUT /admin/settings`; shallow-merges with unrelated blob keys to preserve `app_proxy.subpath` per DECISIONS #9.)*
 
 ### 1I — §6 Merchant onboarding wizard
 - [ ] **P0** Step 1 detect existing Companies/Catalogs/Markets + classic wholesale-tagged customers.

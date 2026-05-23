@@ -25,6 +25,16 @@ export default function App() {
         <Links />
       </head>
       <body>
+        <ui-nav-menu>
+          <a href="/" rel="home">Home</a>
+          <a href="/onboarding">Onboarding</a>
+          <a href="/applications">Applications</a>
+          <a href="/companies">Companies</a>
+          <a href="/tiers">Tiers</a>
+          <a href="/assets">Assets</a>
+          <a href="/analytics">Analytics</a>
+          <a href="/settings">Settings</a>
+        </ui-nav-menu>
         <PolarisAppProvider i18n={{}}>
           <Outlet />
         </PolarisAppProvider>
