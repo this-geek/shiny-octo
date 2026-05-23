@@ -34,8 +34,8 @@ max_batch_size = 10
 max_batch_timeout = 5
 
 [vars]
-APP_URL = "https://b2b-companion.your-subdomain.workers.dev"
-SHOPIFY_API_VERSION = "2025-04"
+APP_URL = "https://b2b-companion.selling.workers.dev"
+SHOPIFY_API_VERSION = "2026-04"
 
 # Secrets (set via: wrangler secret put SHOPIFY_API_KEY)
 # SHOPIFY_API_KEY
