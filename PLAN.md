@@ -14,7 +14,7 @@ Legend: `P0` blocks the pilot · `P1` blocks Day 2 · `P2` blocks App Store.
 **Exit criteria:** install → uninstall round-trip works on a dev store;
 HMAC-verified webhooks are replay-safe; CI is green on a hello-world Worker.
 
-- [ ] **P0** Confirm pilot merchant facts vs §12 of DECISIONS.md (plan, theme, country, customer counts).
+- [x] **P0** Confirm pilot merchant facts vs §12 of DECISIONS.md (plan, theme, country, customer counts). *(Confirmed 2026-05-23: NZ, Advanced, Dawn, ~20 wholesale customers.)*
 - [x] **P0** Scaffold monorepo (`apps/worker`, `apps/admin`, `extensions/...`, `packages/shared`) via Shopify CLI.
 - [x] **P0** Configure `shopify.app.toml` with declarative scopes from §2 + `app/scopes_update` (per DECISIONS #11).
 - [ ] **P0** Provision Cloudflare resources: Workers, D1, KV (sessions, idempotency, hot cache), R2 bucket, Queues, Cloudflare Images, secrets (master key, Shopify API secret, Resend key). *(See MANUAL_STEPS.md)*
