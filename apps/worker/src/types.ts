@@ -11,4 +11,5 @@ export interface Env {
   RESEND_API_KEY: string;
   APP_URL: string;
   SHOPIFY_API_VERSION: string;
+  ADMIN_ORIGIN: string;
 }

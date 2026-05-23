@@ -423,7 +423,18 @@ Redeploy the Worker so the OAuth callback final-redirects to the Pages URL.
 
 ### 11.5 Worker CORS
 
-The Pages site fetches `<worker>/admin/*` from Remix server-side loaders/actions, so there is no browser CORS preflight today. If you ever call the Worker from client-side JS in the Pages app, add CORS headers to the Worker (`Access-Control-Allow-Origin: https://b2b-companion-admin.pages.dev`, plus `Authorization` in `Allow-Headers`).
+The Tiers, Companies, and Settings admin pages fetch `<worker>/admin/*` directly from the browser (App Bridge injects the session token), so the Worker must allowlist the Pages origin.
+
+Set `ADMIN_ORIGIN` on the Worker to your Pages URL — already wired into `apps/worker/wrangler.toml`:
+
+```toml
+[vars]
+ADMIN_ORIGIN = "https://b2b-companion-admin.pages.dev"
+```
+
+For a staging Pages site, comma-separate: `ADMIN_ORIGIN = "https://b2b-companion-admin.pages.dev,https://staging.b2b-companion-admin.pages.dev"`.
+
+The middleware (`apps/worker/src/middleware/cors.ts`) handles the OPTIONS preflight before the session-token check and echoes the origin only if it matches the allowlist. Unset = no CORS headers ever — safe default that breaks browser calls until you configure it.
 
 ### 11.6 Deferred
 

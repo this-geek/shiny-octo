@@ -183,6 +183,7 @@ function makeEnv(): { env: Env; state: State } {
     RESEND_API_KEY: '',
     APP_URL: 'https://worker.example.com',
     SHOPIFY_API_VERSION: '2026-04',
+    ADMIN_ORIGIN: '',
   };
 
   return { env, state };
