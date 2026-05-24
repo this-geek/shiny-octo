@@ -8,10 +8,15 @@ import {
   mirrorCompanyTierHandler,
   type MirrorCompanyTierPayload,
 } from '../handlers/mirror-company-tier.js';
+import {
+  sendApplicationEmailHandler,
+  type SendApplicationEmailPayload,
+} from '../handlers/send-application-email.js';
 import { log } from '../lib/logger.js';
 
 export const INTERNAL_PUBLISH_TIERS_CONFIG = '_internal/publish-tiers-config';
 export const INTERNAL_MIRROR_COMPANY_TIER = '_internal/mirror-company-tier';
+export const INTERNAL_SEND_APPLICATION_EMAIL = '_internal/send-application-email';
 
 interface WebhookQueueMessage {
   id: string;
@@ -158,6 +163,14 @@ async function dispatchWebhook(
       await mirrorCompanyTierHandler(
         shopDomain,
         JSON.parse(body) as MirrorCompanyTierPayload,
+        env,
+      );
+      break;
+
+    case INTERNAL_SEND_APPLICATION_EMAIL:
+      await sendApplicationEmailHandler(
+        shopDomain,
+        JSON.parse(body) as SendApplicationEmailPayload,
         env,
       );
       break;

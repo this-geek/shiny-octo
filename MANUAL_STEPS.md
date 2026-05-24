@@ -175,7 +175,27 @@ wrangler secret put MASTER_KEY
 
 # Resend API key for transactional email
 wrangler secret put RESEND_API_KEY
+
+# (Phase 1E) Cloudflare Turnstile — captcha on the wholesale application
+# form. Optional: if unset, /application/submit skips captcha verification
+# and logs a warning. To enable, create a Turnstile widget at
+# https://dash.cloudflare.com/?to=/:account/turnstile and add the
+# storefront domain(s) under "Allowed hostnames". Then:
+wrangler secret put TURNSTILE_SECRET_KEY
+wrangler secret put TURNSTILE_SITE_KEY  # public, but stored alongside the secret
 ```
+
+Set the visible "From:" address as a non-secret var in `wrangler.toml`:
+
+```toml
+[vars]
+EMAIL_FROM = "B2B Companion <hello@yourdomain.com>"
+```
+
+The sending domain must be verified at Resend with working DKIM, or
+`/application/submit` will skip sending the confirmation email (it logs a
+warning instead of failing closed — the buyer still sees the success
+response with their reference number).
 
 > **MASTER_KEY rotation**: If you rotate this key, all existing encrypted tokens in D1 become unreadable. Plan a migration procedure (re-encrypt all rows with new key) before rotating in production.
 

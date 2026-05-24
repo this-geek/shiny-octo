@@ -126,6 +126,13 @@ export default function Index() {
               description="Upload catalogs, price lists, and product imagery. Set visibility per tier or per company; buyers download via signed proxy routes that re-check visibility on every request."
             />
             <NavCard
+              title="Applications"
+              badge="Live"
+              url="/applications"
+              cta="Open queue"
+              description="Approve, reject, or request more info on incoming wholesale applications. Approve creates the Shopify Company idempotently and sends a templated email."
+            />
+            <NavCard
               title="Settings"
               badge="Live"
               url="/settings"
