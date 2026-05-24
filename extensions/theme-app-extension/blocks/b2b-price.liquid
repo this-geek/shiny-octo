@@ -1,5 +1,9 @@
 {% comment %}
-  b2b-price.liquid — Theme App Embed Block (Phase 1B)
+  b2b-price.liquid — Theme App Embed (Phase 1B, restructured Phase 1H+).
+
+  App embed (target=body) so merchants enable it once in the theme editor's
+  App embeds panel rather than dropping it into every section. It does
+  nothing on non-product templates so adding it globally is safe.
 
   Renders the tier-discounted price client-side via assets/b2b-price.js. The
   block exposes the data the JS needs as data-* attributes; no inline scripts
@@ -14,36 +18,40 @@
   template-level 404 guard in snippets/b2b-product-guard.liquid (DECISIONS #6).
 {% endcomment %}
 
-{%- assign b2b_only = product.metafields.b2b.b2b_only -%}
-{%- assign customer_is_b2b = false -%}
-{%- if customer and customer.b2b? -%}
-  {%- assign customer_is_b2b = true -%}
+{%- if template contains 'product' and product -%}
+  {%- assign b2b_only = product.metafields.b2b.b2b_only -%}
+  {%- assign customer_is_b2b = false -%}
+  {%- if customer and customer.b2b? -%}
+    {%- assign customer_is_b2b = true -%}
+  {%- endif -%}
+
+  {%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
+
+  {%- if b2b_only and customer_is_b2b == false -%}
+    <style>
+      .product-form, .product__price, .price, .product-form__buttons { display: none !important; }
+    </style>
+  {%- endif -%}
+
+  <div
+    data-b2b-price-block
+    data-product-id="{{ product.id }}"
+    data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+    data-base-price-cents="{{ product.selected_or_first_available_variant.price }}"
+    data-b2b-only="{% if b2b_only %}true{% else %}false{% endif %}"
+    data-customer-is-b2b="{% if customer_is_b2b %}true{% else %}false{% endif %}"
+    data-app-proxy-path="{{ app_proxy_path }}"
+    data-show-savings-badge="{% if block.settings.show_savings_badge %}true{% else %}false{% endif %}"
+    data-price-display="{{ block.settings.price_display }}"
+  ></div>
+
+  {{ 'b2b-price.js' | asset_url | script_tag }}
 {%- endif -%}
-
-{%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
-
-{%- if b2b_only and customer_is_b2b == false -%}
-  <style>
-    .product-form, .product__price, .price, .product-form__buttons { display: none !important; }
-  </style>
-{%- endif -%}
-
-<div
-  data-b2b-price-block
-  data-product-id="{{ product.id }}"
-  data-variant-id="{{ product.selected_or_first_available_variant.id }}"
-  data-base-price-cents="{{ product.selected_or_first_available_variant.price }}"
-  data-b2b-only="{% if b2b_only %}true{% else %}false{% endif %}"
-  data-customer-is-b2b="{% if customer_is_b2b %}true{% else %}false{% endif %}"
-  data-app-proxy-path="{{ app_proxy_path }}"
-></div>
-
-{{ 'b2b-price.js' | asset_url | script_tag }}
 
 {% schema %}
 {
   "name": "B2B Tier Price",
-  "target": "section",
+  "target": "body",
   "settings": [
     {
       "type": "checkbox",

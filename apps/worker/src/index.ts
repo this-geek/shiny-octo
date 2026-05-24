@@ -4,6 +4,7 @@ import { oauthRouter } from './routes/oauth.js';
 import { webhooksRouter, handleWebhookQueue } from './routes/webhooks.js';
 import { adminRouter } from './routes/admin.js';
 import { appProxyRouter } from './routes/app-proxy.js';
+import { customerAccountRouter } from './routes/customer-account.js';
 
 interface WebhookQueueMessage {
   id: string;
@@ -18,6 +19,7 @@ app.route('/auth', oauthRouter);
 app.route('/webhooks', webhooksRouter);
 app.route('/admin', adminRouter);
 app.route('/proxy', appProxyRouter);
+app.route('/customer-account', customerAccountRouter);
 
 app.get('/health', c => c.json({ ok: true }));
 

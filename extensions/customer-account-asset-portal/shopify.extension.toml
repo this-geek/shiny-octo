@@ -1,0 +1,23 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "B2B Dealer Asset Portal"
+handle = "b2b-asset-portal"
+type = "ui_extension"
+
+  [[extensions.targeting]]
+  module = "./src/AssetPortalPage.tsx"
+  target = "customer-account.page.render"
+
+  [[extensions.targeting]]
+  module = "./src/AssetPortalLink.tsx"
+  target = "customer-account.order-index.block.render"
+
+  [extensions.settings]
+
+    [[extensions.settings.fields]]
+    key = "worker_base_url"
+    type = "single_line_text_field"
+    name = "Worker base URL"
+    description = "Origin of the B2B Companion Worker (e.g. https://b2b-companion.selling.workers.dev). The extension calls /customer-account/* on this host."
+    required = true
