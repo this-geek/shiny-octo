@@ -2,7 +2,7 @@
 
 client_id = "b82f79dc7124255e373a59a6e0aeef80"
 name = "B2B Companion"
-application_url = "https://b2b-companion.selling.workers.dev/auth"
+application_url = "https://b2b-companion-admin.pages.dev"
 embedded = true
 
 [webhooks]
