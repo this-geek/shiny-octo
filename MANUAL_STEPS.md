@@ -398,26 +398,28 @@ Wrangler prints the deployed URL, e.g. `https://b2b-companion-admin.pages.dev`.
 
 ### 11.3 Update Partner dashboard URLs
 
-In the app's **App setup** page:
+> **Critical**: the **App URL** must point at the Pages site, not the Worker. The Worker's `/auth` is the OAuth install endpoint — it always redirects to `accounts.shopify.com`, which sets `X-Frame-Options: DENY`. If you leave App URL pointed at `<worker>/auth`, the embedded iframe will refuse to load with `Refused to display 'https://admin.shopify.com/' in a frame` and an App Bridge `postMessage` origin mismatch.
 
-| Field | New value |
-|---|---|
-| App URL | `https://b2b-companion-admin.pages.dev/` |
-| Allowed redirection URL(s) | `https://<your-worker-subdomain>.workers.dev/auth/callback` (unchanged — OAuth stays on the Worker) |
-| App Proxy → Proxy URL | `https://<your-worker-subdomain>.workers.dev/proxy` (unchanged — Phase 1B) |
+In the app's **App setup** page, set **only** the App URL — leave the other two fields on the Worker:
+
+| Field | New value | Note |
+|---|---|---|
+| **App URL** | `https://b2b-companion-admin.pages.dev/` | **Change this.** Trailing slash matters; this is where the embedded iframe loads. |
+| Allowed redirection URL(s) | `https://<your-worker-subdomain>.workers.dev/auth/callback` | **Unchanged** — OAuth callback stays on the Worker. |
+| App Proxy → Proxy URL | `https://<your-worker-subdomain>.workers.dev/proxy` | **Unchanged** — Phase 1B. |
 
 Install flow after this change: Shopify → `<worker>/auth?shop=...` → OAuth callback → redirect to `https://{shop}/admin/apps/{api_key}` → Shopify loads `<pages>/?host=...&shop=...&embedded=1&id_token=...` in the iframe.
 
-### 11.4 Worker `APP_URL`
+### 11.4 Do **not** change `APP_URL` in `wrangler.toml`
 
-Change `apps/worker/wrangler.toml`:
+`APP_URL` in the Worker is used only to build the OAuth `redirect_uri` (`${APP_URL}/auth/callback`), which must match the **Allowed redirection URL(s)** field above. It must remain the Worker URL:
 
 ```toml
 [vars]
-APP_URL = "https://b2b-companion-admin.pages.dev"
+APP_URL = "https://b2b-companion.selling.workers.dev"
 ```
 
-Redeploy the Worker so the OAuth callback final-redirects to the Pages URL.
+Pointing it at the Pages URL would break OAuth — Shopify would send the callback to a host with no `/auth/callback` route.
 
 ### 11.5 Worker CORS
 
