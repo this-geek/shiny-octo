@@ -52,6 +52,8 @@ max_batch_timeout = 5
 [vars]
 APP_URL = "https://b2b-companion.selling.workers.dev"
 SHOPIFY_API_VERSION = "2026-04"
+# Pages origin(s) allowed to call /admin/* from the browser. Comma-separated.
+ADMIN_ORIGIN = "https://b2b-companion-admin.pages.dev"
 
 # Secrets (set via: wrangler secret put SHOPIFY_API_KEY)
 # SHOPIFY_API_KEY

@@ -1,19 +1,11 @@
+import { setMetafields } from './metafields.js';
+
 interface ShopIdResponse {
   data?: { shop?: { id?: string } };
   errors?: Array<{ message: string }>;
 }
 
-interface MetafieldsSetResponse {
-  data?: {
-    metafieldsSet?: {
-      metafields?: Array<{ id: string; key: string }>;
-      userErrors?: Array<{ field?: string[]; message: string; code?: string }>;
-    };
-  };
-  errors?: Array<{ message: string }>;
-}
-
-async function fetchShopGid(
+export async function fetchShopGid(
   shopDomain: string,
   token: string,
   apiVersion: string,
@@ -53,43 +45,7 @@ export async function setShopMetafield(
   value: string,
 ): Promise<void> {
   const shopGid = await fetchShopGid(shopDomain, token, apiVersion);
-
-  const mutation = `mutation SetShopMetafield($metafields: [MetafieldsSetInput!]!) {
-    metafieldsSet(metafields: $metafields) {
-      metafields { id key }
-      userErrors { field message code }
-    }
-  }`;
-
-  const res = await fetch(
-    `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': token,
-      },
-      body: JSON.stringify({
-        query: mutation,
-        variables: {
-          metafields: [
-            { ownerId: shopGid, namespace, key, type, value },
-          ],
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) throw new Error(`metafieldsSet HTTP ${res.status}`);
-
-  const json = (await res.json()) as MetafieldsSetResponse;
-  if (json.errors?.length) {
-    throw new Error(`metafieldsSet errors: ${json.errors.map(e => e.message).join(', ')}`);
-  }
-  const userErrors = json.data?.metafieldsSet?.userErrors ?? [];
-  if (userErrors.length > 0) {
-    throw new Error(
-      `metafieldsSet userErrors: ${userErrors.map(e => e.message).join(', ')}`,
-    );
-  }
+  await setMetafields(shopDomain, token, apiVersion, [
+    { ownerId: shopGid, namespace, key, type, value },
+  ]);
 }

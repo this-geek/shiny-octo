@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
 import { sessionTokenMiddleware } from '../middleware/session-token.js';
+import { adminCors } from '../middleware/cors.js';
 import { log } from '../lib/logger.js';
 import {
   mergeSettings,
@@ -9,10 +10,14 @@ import {
   SettingsValidationError,
   validateAdminSettingsPatch,
 } from '../lib/settings.js';
+import { adminTiersRouter } from './admin-tiers.js';
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
 
+adminRouter.use('*', adminCors);
 adminRouter.use('*', sessionTokenMiddleware);
+
+adminRouter.route('/', adminTiersRouter);
 
 adminRouter.get('/shop-status', async c => {
   const shopDomain = c.get('shopDomain');

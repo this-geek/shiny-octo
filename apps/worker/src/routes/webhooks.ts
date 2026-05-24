@@ -3,7 +3,15 @@ import type { Env } from '../types.js';
 import { webhookHmacMiddleware } from '../middleware/webhook-hmac.js';
 import { appUninstalledHandler } from '../handlers/app-uninstalled.js';
 import { shopUpdateHandler } from '../handlers/shop-update.js';
+import { publishTiersConfigHandler } from '../handlers/publish-tiers-config.js';
+import {
+  mirrorCompanyTierHandler,
+  type MirrorCompanyTierPayload,
+} from '../handlers/mirror-company-tier.js';
 import { log } from '../lib/logger.js';
+
+export const INTERNAL_PUBLISH_TIERS_CONFIG = '_internal/publish-tiers-config';
+export const INTERNAL_MIRROR_COMPANY_TIER = '_internal/mirror-company-tier';
 
 interface WebhookQueueMessage {
   id: string;
@@ -130,7 +138,7 @@ export async function handleWebhookQueue(
 async function dispatchWebhook(
   topic: string,
   shopDomain: string,
-  _body: string,
+  body: string,
   env: Env,
 ): Promise<void> {
   switch (topic) {
@@ -140,6 +148,18 @@ async function dispatchWebhook(
 
     case 'shop/update':
       await shopUpdateHandler(shopDomain, env);
+      break;
+
+    case INTERNAL_PUBLISH_TIERS_CONFIG:
+      await publishTiersConfigHandler(shopDomain, env);
+      break;
+
+    case INTERNAL_MIRROR_COMPANY_TIER:
+      await mirrorCompanyTierHandler(
+        shopDomain,
+        JSON.parse(body) as MirrorCompanyTierPayload,
+        env,
+      );
       break;
 
     // GDPR mandatory endpoints — Phase 1 will implement full PII purge

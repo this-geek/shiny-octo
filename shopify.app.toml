@@ -2,11 +2,49 @@
 
 client_id = "b82f79dc7124255e373a59a6e0aeef80"
 name = "B2B Companion"
-application_url = "https://b2b-companion.selling.workers.dev/auth"
+application_url = "https://b2b-companion-admin.pages.dev"
 embedded = true
 
 [webhooks]
 api_version = "2026-04"
+
+[webhooks.privacy_compliance]
+customer_deletion_url       = "https://b2b-companion.selling.workers.dev/webhooks"
+customer_data_request_url   = "https://b2b-companion.selling.workers.dev/webhooks"
+shop_deletion_url           = "https://b2b-companion.selling.workers.dev/webhooks"
+
+[[webhooks.subscriptions]]
+topics = [
+  "app/uninstalled",
+  "app/scopes_update",
+  "shop/update",
+]
+uri = "https://b2b-companion.selling.workers.dev/webhooks"
+
+[[webhooks.subscriptions]]
+topics = [
+  "companies/create",
+  "companies/update",
+  "companies/delete",
+  "company_locations/create",
+  "company_locations/update",
+]
+uri = "https://b2b-companion.selling.workers.dev/webhooks"
+
+[[webhooks.subscriptions]]
+topics = [
+  "customers/create",
+  "customers/update",
+]
+uri = "https://b2b-companion.selling.workers.dev/webhooks"
+
+[[webhooks.subscriptions]]
+topics = [
+  "orders/create",
+  "orders/updated",
+  "orders/cancelled",
+]
+uri = "https://b2b-companion.selling.workers.dev/webhooks"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
