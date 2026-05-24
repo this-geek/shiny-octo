@@ -1,0 +1,6 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "B2B Companion storefront"
+handle = "b2b-companion-theme"
+type = "theme"

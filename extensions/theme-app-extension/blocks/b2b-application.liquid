@@ -1,5 +1,9 @@
 {% comment %}
-  b2b-application.liquid — Theme App Embed Block (Phase 1E)
+  b2b-application.liquid — Theme App Embed (Phase 1E, restructured Phase 1H+).
+
+  App embed (target=body) so merchants enable it once in the theme editor's
+  App embeds panel. They configure which page path the form renders on via
+  the `apply_path` setting; on any other path the block emits nothing.
 
   Renders the wholesale application form for storefront visitors. The form
   schema, Turnstile site key, and tax-ID country list come from the App
@@ -16,63 +20,79 @@
   the form so the buyer doesn't accidentally resubmit.
 {% endcomment %}
 
-{%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
+{%- assign apply_path = block.settings.apply_path | default: '/pages/wholesale-apply' | strip -%}
+{%- assign current_path = request.path | default: '' -%}
+{%- assign path_matches = false -%}
+{%- if apply_path != blank and current_path == apply_path -%}
+  {%- assign path_matches = true -%}
+{%- endif -%}
 
-<div
-  data-b2b-application-block
-  data-app-proxy-path="{{ app_proxy_path }}"
-  data-heading="{{ block.settings.heading | default: 'Apply for a wholesale account' | escape }}"
->
-  <h2 class="b2b-app__heading">{{ block.settings.heading | default: 'Apply for a wholesale account' }}</h2>
-  <p class="b2b-app__intro">{{ block.settings.intro_text | default: 'Tell us about your business and our team will follow up within a few days.' }}</p>
-  <div class="b2b-app__form-root"></div>
-</div>
+{%- if path_matches -%}
+  {%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
 
-<style>
-  .b2b-app__heading { font-size: 1.5rem; margin-bottom: 0.5rem; }
-  .b2b-app__intro { color: rgba(0,0,0,0.65); margin-bottom: 1rem; }
-  .b2b-app__form { display: grid; gap: 0.75rem; max-width: 560px; }
-  .b2b-app__row { display: grid; gap: 0.25rem; }
-  .b2b-app__row label { font-weight: 600; font-size: 0.9em; }
-  .b2b-app__row input,
-  .b2b-app__row select,
-  .b2b-app__row textarea {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid rgba(0,0,0,0.25);
-    border-radius: 4px;
-    font: inherit;
-  }
-  .b2b-app__row textarea { min-height: 5rem; resize: vertical; }
-  .b2b-app__error { color: #b00020; font-size: 0.9em; }
-  .b2b-app__success {
-    background: rgba(0,128,0,0.08);
-    border: 1px solid rgba(0,128,0,0.4);
-    padding: 1rem;
-    border-radius: 6px;
-  }
-  .b2b-app__submit {
-    padding: 0.6rem 1.2rem;
-    background: #111;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font: inherit;
-  }
-  .b2b-app__submit[disabled] { opacity: 0.6; cursor: progress; }
-  .b2b-app__doclist { list-style: none; padding: 0; margin: 0.5rem 0; }
-  .b2b-app__doclist li { padding: 0.25rem 0; color: rgba(0,0,0,0.7); }
-  .b2b-app__autosave { color: rgba(0,0,0,0.55); font-size: 0.8em; min-height: 1em; }
-</style>
+  <div
+    data-b2b-application-block
+    data-app-proxy-path="{{ app_proxy_path }}"
+    data-heading="{{ block.settings.heading | default: 'Apply for a wholesale account' | escape }}"
+  >
+    <h2 class="b2b-app__heading">{{ block.settings.heading | default: 'Apply for a wholesale account' }}</h2>
+    <p class="b2b-app__intro">{{ block.settings.intro_text | default: 'Tell us about your business and our team will follow up within a few days.' }}</p>
+    <div class="b2b-app__form-root"></div>
+  </div>
 
-{{ 'b2b-application.js' | asset_url | script_tag }}
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    .b2b-app__heading { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .b2b-app__intro { color: rgba(0,0,0,0.65); margin-bottom: 1rem; }
+    .b2b-app__form { display: grid; gap: 0.75rem; max-width: 560px; }
+    .b2b-app__row { display: grid; gap: 0.25rem; }
+    .b2b-app__row label { font-weight: 600; font-size: 0.9em; }
+    .b2b-app__row input,
+    .b2b-app__row select,
+    .b2b-app__row textarea {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid rgba(0,0,0,0.25);
+      border-radius: 4px;
+      font: inherit;
+    }
+    .b2b-app__row textarea { min-height: 5rem; resize: vertical; }
+    .b2b-app__error { color: #b00020; font-size: 0.9em; }
+    .b2b-app__success {
+      background: rgba(0,128,0,0.08);
+      border: 1px solid rgba(0,128,0,0.4);
+      padding: 1rem;
+      border-radius: 6px;
+    }
+    .b2b-app__submit {
+      padding: 0.6rem 1.2rem;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .b2b-app__submit[disabled] { opacity: 0.6; cursor: progress; }
+    .b2b-app__doclist { list-style: none; padding: 0; margin: 0.5rem 0; }
+    .b2b-app__doclist li { padding: 0.25rem 0; color: rgba(0,0,0,0.7); }
+    .b2b-app__autosave { color: rgba(0,0,0,0.55); font-size: 0.8em; min-height: 1em; }
+  </style>
+
+  {{ 'b2b-application.js' | asset_url | script_tag }}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{%- endif -%}
 
 {% schema %}
 {
   "name": "B2B Wholesale Application",
-  "target": "section",
+  "target": "body",
   "settings": [
+    {
+      "type": "text",
+      "id": "apply_path",
+      "label": "Application page path",
+      "info": "The URL path where the form renders. Defaults to /pages/wholesale-apply.",
+      "default": "/pages/wholesale-apply"
+    },
     {
       "type": "text",
       "id": "heading",
