@@ -9,10 +9,14 @@ import { getAsset, logAssetDownload, type Asset } from '../lib/asset-store.js';
 import { isAssetVisible, listVisibleAssets } from '../lib/asset-visibility.js';
 import { assertWithinBudget, recordDownload } from '../lib/bandwidth-counter.js';
 import { assertKeyBelongsToShop } from '../lib/r2-keys.js';
+import { appProxyApplicationsRouter } from './app-proxy-applications.js';
 
 export const appProxyRouter = new Hono<{ Bindings: Env }>();
 
 appProxyRouter.use('*', appProxyMiddleware);
+
+// Phase 1E — wholesale application form. Routes start with /application/*.
+appProxyRouter.route('/', appProxyApplicationsRouter);
 
 interface CustomerCompanyResp {
   data?: {

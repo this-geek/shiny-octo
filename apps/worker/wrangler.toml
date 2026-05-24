@@ -55,8 +55,15 @@ SHOPIFY_API_VERSION = "2026-04"
 # Pages origin(s) allowed to call /admin/* from the browser. Comma-separated.
 ADMIN_ORIGIN = "https://b2b-companion-admin.pages.dev"
 
+# EMAIL_FROM is a non-secret var (it's a visible From: address). Set the
+# domain you've verified at Resend; Phase 1E emails will fail to send until
+# this is configured and the domain has working DKIM at Resend.
+# EMAIL_FROM = "B2B Companion <hello@yourdomain.com>"
+
 # Secrets (set via: wrangler secret put SHOPIFY_API_KEY)
 # SHOPIFY_API_KEY
 # SHOPIFY_API_SECRET
 # MASTER_KEY  (256-bit hex)
 # RESEND_API_KEY
+# TURNSTILE_SECRET_KEY  (Phase 1E; optional — captcha is skipped if unset)
+# TURNSTILE_SITE_KEY    (Phase 1E; optional, paired with the secret)

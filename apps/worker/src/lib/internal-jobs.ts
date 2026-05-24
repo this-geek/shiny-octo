@@ -2,7 +2,10 @@ import type { Env } from '../types.js';
 import {
   INTERNAL_PUBLISH_TIERS_CONFIG,
   INTERNAL_MIRROR_COMPANY_TIER,
+  INTERNAL_SEND_APPLICATION_EMAIL,
 } from '../routes/webhooks.js';
+
+export type ApplicationEmailKind = 'submitted' | 'approved' | 'rejected' | 'needs_info';
 
 interface InternalJobMessage {
   id: string;
@@ -31,6 +34,26 @@ export async function enqueueTiersConfigPublish(
     topic: INTERNAL_PUBLISH_TIERS_CONFIG,
     shop_domain: shopDomain,
     body: '',
+  };
+  await env.WEBHOOK_QUEUE.send(msg);
+}
+
+/**
+ * Enqueue an application-state email. The queue handler reads the current
+ * row + email template and calls Resend. Network failures fall through to
+ * the queue's retry policy.
+ */
+export async function enqueueApplicationEmail(
+  env: Env,
+  shopDomain: string,
+  applicationId: number,
+  kind: ApplicationEmailKind,
+): Promise<void> {
+  const msg: InternalJobMessage = {
+    id: newId(`app-email-${kind}`),
+    topic: INTERNAL_SEND_APPLICATION_EMAIL,
+    shop_domain: shopDomain,
+    body: JSON.stringify({ application_id: applicationId, kind }),
   };
   await env.WEBHOOK_QUEUE.send(msg);
 }

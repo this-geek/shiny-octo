@@ -12,6 +12,7 @@ import {
 } from '../lib/settings.js';
 import { adminTiersRouter } from './admin-tiers.js';
 import { adminAssetsRouter } from './admin-assets.js';
+import { adminApplicationsRouter } from './admin-applications.js';
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
 
@@ -20,6 +21,7 @@ adminRouter.use('*', sessionTokenMiddleware);
 
 adminRouter.route('/', adminTiersRouter);
 adminRouter.route('/', adminAssetsRouter);
+adminRouter.route('/', adminApplicationsRouter);
 
 adminRouter.get('/shop-status', async c => {
   const shopDomain = c.get('shopDomain');
