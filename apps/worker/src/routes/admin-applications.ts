@@ -32,6 +32,7 @@ import {
 } from '../lib/shopify-companies-create.js';
 import { enqueueApplicationEmail } from '../lib/internal-jobs.js';
 import { assertKeyBelongsToShop } from '../lib/r2-keys.js';
+import { CustomerInviteError, sendCustomerInvite } from '../lib/shopify-customer-invite.js';
 
 export const adminApplicationsRouter = new Hono<{ Bindings: Env }>();
 
@@ -222,16 +223,42 @@ adminApplicationsRouter.post('/applications/:id/approve', async c => {
 
   await enqueueApplicationEmail(c.env, shopDomain, id, 'approved');
 
+  // Magic-link welcome (DECISIONS #7). Best-effort: a failed invite logs but
+  // doesn't block approval — the merchant can resend from the application
+  // detail page. The approval email already mentions the buyer will receive
+  // a separate sign-in link, so the buyer experience is consistent either way.
+  let inviteSent = false;
+  if (result.customerId) {
+    try {
+      await sendCustomerInvite(
+        shopDomain,
+        auth.token,
+        c.env.SHOPIFY_API_VERSION,
+        result.customerId,
+      );
+      inviteSent = true;
+    } catch (err) {
+      const reason = err instanceof CustomerInviteError ? err.message : String(err);
+      log('warn', 'admin: magic-link invite failed', {
+        shop: shopDomain,
+        application_id: id,
+        reason,
+      });
+    }
+  }
+
   log('info', 'admin: application approved', {
     shop: shopDomain,
     application_id: id,
     company: result.companyId,
+    invite_sent: inviteSent,
   });
 
   return c.json({
     application: row,
     created_company_id: result.companyId,
     created_location_id: result.locationId,
+    invite_sent: inviteSent,
     idempotent: false,
   });
 });

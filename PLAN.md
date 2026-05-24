@@ -77,7 +77,7 @@ downloaded an asset, and was warned at a minimum-order violation.
 - [x] **P0** Admin approval queue (list, filters, detail, doc previews via signed URL). *(`routes/admin-applications.ts` + `apps/admin/app/routes/applications.tsx`. Documents stream through the Worker — `/admin/applications/:id/document?key=` — re-checking shop ownership + document allowlist on every fetch.)*
 - [x] **P0** Idempotent approve: D1 tx + GraphQL `companyCreate` / `companyLocationCreate` / `companyContactCreate` with mutation idempotency key. *(`lib/shopify-companies-create.ts` sends `X-Idempotency-Key: b2b-companion:approve:<shop>:app-<id>`; the route also short-circuits before re-hitting Shopify if `applications.created_company_id` is already populated.)*
 - [x] **P0** Reject + Request-more-info templated emails (Resend, per DECISIONS #16). *(`lib/email-resend.ts` + `handlers/send-application-email.ts`; templates read from `shops.settings_json.emailTemplates` with safe defaults. Variables HTML-escaped to prevent template-injection.)*
-- [ ] **P0** Magic-link welcome via Customer Account API (per DECISIONS #7). *(Deferred — the approve email currently mentions a "login link sent separately"; the Customer Account API call is a 1-line follow-up once we add a `customerSendAccountInviteEmail` (or equivalent magic-link) mutation behind the existing Shopify GraphQL plumbing.)*
+- [x] **P0** Magic-link welcome via Customer Account API (per DECISIONS #7). *(`lib/shopify-customer-invite.ts::sendCustomerInvite` wraps the `customerSendAccountInviteEmail` mutation. Approve flow in `routes/admin-applications.ts` calls it best-effort after `companyCreate` succeeds — failure logs but doesn't block approval, since the merchant can resend from the application detail page. Same helper is used by the Phase 1I onboarding wizard's Step 6 test buyer.)*
 - [x] **P0** Acceptance tests: idempotency under double-click, reject creates no Shopify artefacts. *(`routes/admin-applications.test.ts` — "double-click approve does not create a second Company" and "on companyCreate failure, the application stays in submitted and no row mutates" cover both invariants.)*
 
 ### 1F — §4.5 Minimums & step quantities
@@ -95,13 +95,15 @@ downloaded an asset, and was warned at a minimum-order violation.
 - [x] **P0** Settings: brand colours, application form builder, email templates. *(Stored in `shops.settings_json` via `GET/PUT /admin/settings`; shallow-merges with unrelated blob keys to preserve `app_proxy.subpath` per DECISIONS #9.)*
 
 ### 1I — §6 Merchant onboarding wizard
-- [ ] **P0** Step 1 detect existing Companies/Catalogs/Markets + classic wholesale-tagged customers.
-- [ ] **P1** Step 2 migration wizard (dry-run + commit). Downgraded to P1 per DECISIONS #12 — ~20 wholesale-tagged customers can be imported manually for the pilot.
-- [ ] **P0** Step 3 tier setup with defaults + Markets binding.
-- [ ] **P0** Step 4 registration form builder + approval mode.
-- [ ] **P0** Step 5 asset library bootstrap (skippable).
-- [ ] **P0** Step 6 test customer creation (email per DECISIONS #15) + magic link.
-- [ ] **P0** Step 7 go-live checklist.
+- [x] **P0** Step 1 detect existing Companies/Catalogs/Markets + classic wholesale-tagged customers. *(`lib/shopify-detect.ts` runs `companies`/`catalogs`/`markets`/`customers(query:"tag:wholesale")` in one GraphQL roundtrip; `routes/admin-onboarding.ts::POST /admin/onboarding/detect` persists counts into the step's `data` blob. Catalogs query degrades gracefully on older API versions — UI shows "unknown".)*
+- [ ] **P1** Step 2 migration wizard (dry-run + commit). Downgraded to P1 per DECISIONS #12 — ~20 wholesale-tagged customers can be imported manually for the pilot. *(Intentionally omitted from the 1I wizard; the six implemented steps skip past it.)*
+- [x] **P0** Step 3 tier setup with defaults + Markets binding. *(Wizard step routes the merchant to the existing `/tiers` admin page and marks itself complete on confirmation. Tiers UI was already live in Phase 1D.)*
+- [x] **P0** Step 4 registration form builder + approval mode. *(Wizard step routes to `/settings` where the form builder + email templates live; mark-complete button records progress.)*
+- [x] **P0** Step 5 asset library bootstrap (skippable). *(Wizard step routes to `/assets`; explicit Skip button flagged via `SKIPPABLE_STEPS` in `lib/onboarding-store.ts`.)*
+- [x] **P0** Step 6 test customer creation (email per DECISIONS #15) + magic link. *(`POST /admin/onboarding/test-buyer/create` calls `createCompanyForApplication` with email `test-buyer+<shop>@<EMAIL_FROM-domain>` (catch-all per DECISIONS #15), then `sendCustomerInvite` (`customerSendAccountInviteEmail` mutation) for the magic link. Idempotent on Shopify's side via the existing `X-Idempotency-Key` plumbing. Resend endpoint at `POST /admin/onboarding/test-buyer/:cid/invite`.)*
+- [x] **P0** Step 7 go-live checklist. *(Static checklist surfacing the three storefront-enable steps merchants must take in the theme editor + Customer Account UI panel before announcing the portal.)*
+
+State persists in `shops.settings_json.onboarding` (lib/onboarding-store.ts). Status lifecycle is pending → completed | dismissed; admin home surfaces a continue-setup banner whenever status is pending. Backed by 11 new unit tests covering state transitions + the magic-link mutation.
 
 ### 1J — §7 Buyer onboarding
 - [ ] **P0** Pre-application content block template (merchant-installable).

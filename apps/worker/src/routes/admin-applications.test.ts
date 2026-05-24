@@ -271,28 +271,44 @@ describe('admin applications: approve', () => {
   });
 
   function mockCompanyCreate(): ReturnType<typeof vi.fn> {
-    return vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
+    // The approve flow runs two GraphQL mutations now: companyCreate followed
+    // by customerSendAccountInviteEmail (DECISIONS #7 magic-link welcome).
+    // The mock branches on the request body so each mutation gets a sensible
+    // shape back.
+    return vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as { query: string };
+      if (body.query.includes('customerSendAccountInviteEmail')) {
+        return new Response(
           JSON.stringify({
             data: {
-              companyCreate: {
-                company: {
-                  id: 'gid://shopify/Company/100',
-                  mainContact: {
-                    id: 'gid://shopify/CompanyContact/200',
-                    customer: { id: 'gid://shopify/Customer/300' },
-                  },
-                  locations: { nodes: [{ id: 'gid://shopify/CompanyLocation/400' }] },
-                },
-                userErrors: [],
+              customerSendAccountInviteEmail: {
+                customer: { id: 'gid://shopify/Customer/300' },
+                customerUserErrors: [],
               },
             },
           }),
           { status: 200 },
-        ),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          data: {
+            companyCreate: {
+              company: {
+                id: 'gid://shopify/Company/100',
+                mainContact: {
+                  id: 'gid://shopify/CompanyContact/200',
+                  customer: { id: 'gid://shopify/Customer/300' },
+                },
+                locations: { nodes: [{ id: 'gid://shopify/CompanyLocation/400' }] },
+              },
+              userErrors: [],
+            },
+          },
+        }),
+        { status: 200 },
       );
+    });
   }
 
   it('first approve creates a Company, enqueues an email, returns 200', async () => {
@@ -320,7 +336,11 @@ describe('admin applications: approve', () => {
     expect(json.idempotent).toBe(false);
     expect(state.apps.get(id)?.status).toBe('approved');
     expect(state.queue.some(m => m.topic === '_internal/send-application-email')).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // companyCreate + customerSendAccountInviteEmail
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const calls = fetchMock.mock.calls.map(c => JSON.parse((c[1] as RequestInit).body as string).query as string);
+    expect(calls.some(q => q.includes('companyCreate'))).toBe(true);
+    expect(calls.some(q => q.includes('customerSendAccountInviteEmail'))).toBe(true);
   });
 
   it('double-click approve does not create a second Company', async () => {
@@ -350,8 +370,8 @@ describe('admin applications: approve', () => {
     expect(json.idempotent).toBe(true);
     expect(json.created_company_id).toBe('gid://shopify/Company/100');
 
-    // The second click never re-hits Shopify.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // The second click never re-hits Shopify (no companyCreate, no invite).
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     // And does not re-enqueue an approved email.
     expect(state.queue.length).toBe(0);
   });
