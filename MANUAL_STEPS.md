@@ -448,3 +448,68 @@ The middleware (`apps/worker/src/middleware/cors.ts`) handles the OPTIONS prefli
 - [ ] DevTools → Network → admin loader request shows `Authorization: Bearer <id_token>` going to the Worker URL.
 - [ ] Response headers on the Pages document include `Content-Security-Policy: frame-ancestors https://*.myshopify.com https://admin.shopify.com`.
 
+---
+
+## 12. Phase 1C: Dealer asset portal
+
+Required after the Phase 1C Worker + Pages + Theme App Extension code is deployed.
+
+### 12.1 Prerequisites
+
+- R2 bucket `b2b-companion-assets` exists (created in §3.3).
+- Phase 1B App Proxy is configured (the buyer block calls `/apps/<prefix>/assets/list` over it).
+
+No extra secrets are needed — the asset portal uses the existing `ASSETS_BUCKET` binding for both uploads (multipart via the Worker) and downloads (streamed via the Worker). R2 objects are never given out as public URLs.
+
+### 12.2 Enable the buyer "Dealer Assets" block on the theme
+
+The block `extensions/theme-app-extension/blocks/b2b-assets.liquid` ships with the existing Theme App Extension. After `shopify app deploy`:
+
+1. Shopify admin → **Online Store → Themes → Customize**.
+2. Open the page where you want dealer assets visible — typically the customer account page (template `customers/account`) or a dedicated B2B portal page.
+3. Click **Add section → Apps → B2B Dealer Assets**.
+4. Save the theme.
+
+The block renders nothing for guests, a "B2B only" notice for non-B2B customers, and the searchable asset list for approved B2B buyers. The list comes from `GET /apps/<prefix>/assets/list`; downloads stream through `GET /apps/<prefix>/assets/download/:id` (the buyer never sees an R2 URL).
+
+### 12.3 Configure the fair-use ceiling
+
+The 250 GB/shop/month ceiling (DECISIONS #14) is hard-coded in `apps/worker/src/lib/bandwidth-counter.ts::CAP_BYTES`. The bucket key is `bw:<shop_id>:<YYYY-MM>` in the `KV_HOT_CACHE` namespace. To inspect usage for a shop:
+
+```bash
+wrangler kv key get --binding=KV_HOT_CACHE "bw:7:2026-05"
+```
+
+To reset a shop's counter (e.g. after a billing dispute):
+
+```bash
+wrangler kv key delete --binding=KV_HOT_CACHE "bw:7:2026-05"
+```
+
+When the cap is hit, `GET /assets/download/:id` returns HTTP 429 with `{"error": "monthly download limit reached; contact the merchant"}` and the merchant has to wait for the calendar month to roll over (or the operator clears the bucket manually).
+
+### 12.4 R2 object lifecycle
+
+- **Uploads**: admin calls `POST /admin/assets/uploads` to start a multipart session. Parts (≤95 MiB each) PUT to `/admin/assets/uploads/:sessionId/parts/:n`. Once complete is called, the canonical R2 key is `shops/<shop_id>/assets/<asset_id>/original` (after `POST /admin/assets/:id/finalise-upload` server-side-copies from the temp upload path to the canonical key).
+- **Soft delete**: the D1 row gets `deleted_at` but the R2 object stays in place. A nightly cron to hard-delete R2 objects whose D1 rows have been soft-deleted >30 days is a Day-2 follow-up; for now the recovery window is unbounded.
+- **GDPR `shop/redact`**: the existing handler should be extended in Phase 2 to walk `assets.r2_key` and delete the R2 objects after the 48h grace.
+
+### 12.5 Verify checklist (Phase 1C acceptance — manual)
+
+- [ ] Merchant uploads a small PDF in `/assets`, sees it appear in the list.
+- [ ] Merchant uploads a >100MB file: upload completes (multipart chunking), the asset row appears, and the bytes land at `shops/<shop_id>/assets/<id>/original` in R2.
+- [ ] A buyer in tier A can download an asset whose visibility is "tier A only"; the same buyer gets 404 on an asset visible only to tier B.
+- [ ] A guest hitting `/apps/<prefix>/assets/list` over the App Proxy gets `{ "assets": [] }` (signature still verifies, but the buyer isn't B2B).
+- [ ] A buyer hitting `/apps/<prefix>/assets/download/:id` for an asset they can see gets a streamed download with `Content-Disposition: attachment` and `Cache-Control: private, no-store`.
+- [ ] The KV bucket `bw:<shop_id>:<YYYY-MM>` increments by approximately the downloaded file size after each download.
+- [ ] After the cap is set to a small value in a local override and exceeded, the next download returns HTTP 429.
+- [ ] R2 bucket browser shows no public/presigned URLs were ever issued — all access is via the Worker.
+
+### 12.6 Deferred (Day 2 / Phase 2)
+
+- **Cloudflare Images variant generation** (DECISIONS #2). Buyer list serves the `original` variant for images today. To wire variants: enable Cloudflare Images, store the Account ID + API token as Worker secrets, add a queue job that POSTs the uploaded image to Images on `finalise-upload` completion, and persist the resulting variant URL(s) on the asset row (small schema migration needed).
+- **Zip-stream bulk download**. Needs a streaming-zip implementation in the Worker so we don't buffer N files in memory.
+- **Drag-and-drop uploader**. Today the admin uses the file picker.
+- **Bulk tag**. Needs an `asset_tags` table (no schema today).
+- **R2 hard-delete cron** for soft-deleted assets older than 30 days.
+
