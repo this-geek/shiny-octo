@@ -119,6 +119,13 @@ export default function Index() {
               description="Map Shopify Companies to tiers. Every mapping change mirrors b2b.tier_id onto the Company metafield for the cart-transform Function."
             />
             <NavCard
+              title="Asset library"
+              badge="Live"
+              url="/assets"
+              cta="Open assets"
+              description="Upload catalogs, price lists, and product imagery. Set visibility per tier or per company; buyers download via signed proxy routes that re-check visibility on every request."
+            />
+            <NavCard
               title="Settings"
               badge="Live"
               url="/settings"

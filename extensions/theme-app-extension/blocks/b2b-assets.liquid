@@ -1,0 +1,82 @@
+{% comment %}
+  b2b-assets.liquid — Theme App Embed Block (Phase 1C)
+
+  Renders the dealer asset portal for an approved B2B buyer on a customer
+  account page. The list/download routes are App Proxy endpoints, so they
+  carry Shopify's `logged_in_customer_id` + `signature` query params and the
+  Worker can resolve the buyer's tier/company without an extra auth round.
+
+  Visibility resolution happens server-side on every list/download call — the
+  client never sees the r2_key for hidden assets, and download URLs are
+  proxied through the Worker (no public R2 paths).
+
+  Drop this block onto the customer account template (or any page reserved
+  for logged-in B2B buyers).
+{% endcomment %}
+
+{%- assign customer_is_b2b = false -%}
+{%- if customer and customer.b2b? -%}
+  {%- assign customer_is_b2b = true -%}
+{%- endif -%}
+
+{%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
+
+<div
+  data-b2b-assets-block
+  data-customer-is-b2b="{% if customer_is_b2b %}true{% else %}false{% endif %}"
+  data-app-proxy-path="{{ app_proxy_path }}"
+>
+  {%- unless customer -%}
+    <p class="b2b-assets__guest">Please log in to access dealer assets.</p>
+  {%- else -%}
+    {%- unless customer_is_b2b -%}
+      <p class="b2b-assets__non-b2b">Dealer assets are only available to approved B2B accounts.</p>
+    {%- endunless -%}
+  {%- endunless -%}
+  <div class="b2b-assets__root"></div>
+</div>
+
+<style>
+  .b2b-assets__root { display: grid; gap: 0.75rem; }
+  .b2b-assets__item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 6px;
+  }
+  .b2b-assets__title { font-weight: 600; }
+  .b2b-assets__meta { color: rgba(0,0,0,0.6); font-size: 0.85em; }
+  .b2b-assets__filter {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+  .b2b-assets__filter input,
+  .b2b-assets__filter select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 4px;
+  }
+  .b2b-assets__empty { color: rgba(0,0,0,0.55); font-style: italic; }
+</style>
+
+{{ 'b2b-assets.js' | asset_url | script_tag }}
+
+{% schema %}
+{
+  "name": "B2B Dealer Assets",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Dealer assets"
+    }
+  ]
+}
+{% endschema %}
