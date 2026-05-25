@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
-import {
-  BlockStack,
-  Banner,
-  Heading,
-  Spinner,
-  Text,
-  useApi,
-} from '@shopify/ui-extensions-react/customer-account';
+/**
+ * Day-1 company profile view (Phase 1J §7) — read-only view of the buyer's
+ * Shopify Company, tier, locations (with tax-exempt flag) and team contacts.
+ *
+ * Migrated to the 2026.4 Preact + web-component surface — same data + UX
+ * as the React original.
+ */
+
+import { useEffect, useState } from 'preact/hooks';
+import { useApi } from '@shopify/ui-extensions/customer-account/preact';
 import { fetchCompanyProfile, type CompanyProfileResponse } from './api';
 
 function formatDiscount(t: NonNullable<CompanyProfileResponse['tier']>): string {
@@ -18,12 +19,13 @@ interface Props {
   workerBaseUrl: string;
 }
 
-export default function CompanyProfileView({ workerBaseUrl }: Props): JSX.Element {
-  const api = useApi();
+export default function CompanyProfileView({ workerBaseUrl }: Props) {
+  const api = useApi<'customer-account.page.render'>();
   const [profile, setProfile] = useState<CompanyProfileResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!workerBaseUrl) return;
     let cancelled = false;
     (async () => {
       try {
@@ -39,65 +41,63 @@ export default function CompanyProfileView({ workerBaseUrl }: Props): JSX.Elemen
     };
   }, [api, workerBaseUrl]);
 
-  if (error) return <Banner status="critical">{error}</Banner>;
-  if (!profile) return <Spinner />;
+  if (error) return <s-banner tone="critical">{error}</s-banner>;
+  if (!profile) return <s-spinner accessibilityLabel="Loading profile" />;
 
   if (!profile.buyer.is_b2b) {
-    return <Text>This account is not linked to a wholesale company yet.</Text>;
+    return <s-text>This account is not linked to a wholesale company yet.</s-text>;
   }
 
   return (
-    <BlockStack spacing="loose">
+    <s-stack direction="block" gap="loose">
       {profile.company ? (
-        <BlockStack spacing="tight">
-          <Heading level={3}>Company</Heading>
-          <Text>{profile.company.name}</Text>
-        </BlockStack>
+        <s-stack direction="block" gap="tight">
+          <s-heading>Company</s-heading>
+          <s-text>{profile.company.name}</s-text>
+        </s-stack>
       ) : (
-        <Text appearance="subdued">No company linked.</Text>
+        <s-text>No company linked.</s-text>
       )}
 
       {profile.tier ? (
-        <BlockStack spacing="tight">
-          <Heading level={3}>Pricing tier</Heading>
-          <Text>{profile.tier.name}</Text>
-          <Text appearance="subdued">{formatDiscount(profile.tier)}</Text>
-        </BlockStack>
+        <s-stack direction="block" gap="tight">
+          <s-heading>Pricing tier</s-heading>
+          <s-text>{profile.tier.name}</s-text>
+          <s-text>{formatDiscount(profile.tier)}</s-text>
+        </s-stack>
       ) : (
-        <BlockStack spacing="tight">
-          <Heading level={3}>Pricing tier</Heading>
-          <Text appearance="subdued">No tier assigned yet — your account manager will set this.</Text>
-        </BlockStack>
+        <s-stack direction="block" gap="tight">
+          <s-heading>Pricing tier</s-heading>
+          <s-text>No tier assigned yet — your account manager will set this.</s-text>
+        </s-stack>
       )}
 
       {profile.company && profile.company.locations.length > 0 && (
-        <BlockStack spacing="tight">
-          <Heading level={3}>Locations</Heading>
+        <s-stack direction="block" gap="tight">
+          <s-heading>Locations</s-heading>
           {profile.company.locations.map(loc => (
-            <BlockStack key={loc.id} spacing="none">
-              <Text>{loc.name}</Text>
-              <Text appearance="subdued">
-                {loc.tax_exempt ? 'Tax-exempt' : 'Tax applies at checkout'}
-              </Text>
-            </BlockStack>
+            <s-stack key={loc.id} direction="block" gap="none">
+              <s-text>{loc.name}</s-text>
+              <s-text>{loc.tax_exempt ? 'Tax-exempt' : 'Tax applies at checkout'}</s-text>
+            </s-stack>
           ))}
-        </BlockStack>
+        </s-stack>
       )}
 
       {profile.company && profile.company.contacts.length > 0 && (
-        <BlockStack spacing="tight">
-          <Heading level={3}>Team</Heading>
+        <s-stack direction="block" gap="tight">
+          <s-heading>Team</s-heading>
           {profile.company.contacts.map(c => (
-            <BlockStack key={c.customer_id} spacing="none">
-              <Text>
+            <s-stack key={c.customer_id} direction="block" gap="none">
+              <s-text>
                 {c.name}
                 {c.is_main ? ' · primary' : ''}
-              </Text>
-              <Text appearance="subdued">{c.email}</Text>
-            </BlockStack>
+              </s-text>
+              <s-text>{c.email}</s-text>
+            </s-stack>
           ))}
-        </BlockStack>
+        </s-stack>
       )}
-    </BlockStack>
+    </s-stack>
   );
 }

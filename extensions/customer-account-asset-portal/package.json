@@ -9,13 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@shopify/ui-extensions": "2025.8.0",
-    "@shopify/ui-extensions-react": "2026.0.0",
-    "react": "^18.0.0",
-    "react-reconciler": "^0.29.0"
+    "@shopify/ui-extensions": "2026.4.2",
+    "preact": "^10.27.0",
+    "@preact/signals": "^1.3.0"
   },
   "devDependencies": {
-    "@types/react": "^18.0.0",
     "typescript": "^5.0.0"
   }
 }
