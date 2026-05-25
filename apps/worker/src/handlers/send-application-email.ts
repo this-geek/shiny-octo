@@ -19,6 +19,7 @@ import {
   getApplicationDetail,
   type ApplicationDetail,
 } from '../lib/application-store.js';
+import { signResumeToken } from '../lib/resume-token.js';
 import type { ApplicationEmailKind } from '../lib/internal-jobs.js';
 
 export interface SendApplicationEmailPayload {
@@ -37,7 +38,8 @@ const DEFAULT_TEMPLATES: Record<ApplicationEmailKind, EmailTemplate> = {
     subject: 'Your wholesale application is approved',
     body:
       '<p>Hi {{companyName}},</p><p>Your wholesale account is ready. ' +
-      '{{magicLinkParagraph}}</p>',
+      '{{magicLinkParagraph}}</p><p>Once you sign in, your dealer portal is at ' +
+      '<a href="{{accountUrl}}">{{accountUrl}}</a>.</p>',
   },
   rejected: {
     subject: 'Update on your wholesale application',
@@ -49,7 +51,33 @@ const DEFAULT_TEMPLATES: Record<ApplicationEmailKind, EmailTemplate> = {
     subject: 'We need more information for your wholesale application',
     body:
       '<p>Hi {{companyName}},</p><p>Thanks for applying. Before we can decide, we need a bit ' +
-      'more information:</p><p>{{notes}}</p><p>Resume your application: {{resumeUrl}}</p>',
+      'more information:</p><p>{{notes}}</p><p>Resume your application: ' +
+      '<a href="{{resumeUrl}}">{{resumeUrl}}</a></p>',
+  },
+  nudge_14d: {
+    subject: 'Your wholesale account is ready when you are',
+    body:
+      "<p>Hi {{companyName}},</p><p>Just a quick check-in — it's been a couple of weeks since " +
+      "we approved your wholesale account and we haven't seen an order yet. If you need a hand " +
+      'placing your first order or have questions about pricing or shipping, hit reply and ' +
+      'someone from our team will be in touch.</p><p>Your account: ' +
+      '<a href="{{accountUrl}}">{{accountUrl}}</a>.</p>',
+  },
+  nudge_30d: {
+    subject: 'Anything we can help with on your wholesale account?',
+    body:
+      "<p>Hi {{companyName}},</p><p>You've had wholesale access for about a month now. If " +
+      "there's anything blocking your first order — pricing, shipping, an asset you need, " +
+      'a product not yet available at wholesale — let us know and we will do our best to ' +
+      'unblock it.</p><p>Sign in: <a href="{{accountUrl}}">{{accountUrl}}</a>.</p>',
+  },
+  nudge_60d: {
+    subject: 'Keeping your wholesale account active',
+    body:
+      "<p>Hi {{companyName}},</p><p>It's been about two months since we approved your " +
+      "wholesale account. We'd love to keep it open for you — just let us know if you'd " +
+      "like us to deactivate it or if there's something we can do to help you get your " +
+      'first order placed.</p><p>Sign in: <a href="{{accountUrl}}">{{accountUrl}}</a>.</p>',
   },
 };
 
@@ -63,6 +91,12 @@ function pickTemplate(
   const key = kind === 'needs_info' ? 'moreInfo' : kind;
   const custom = templates?.[key];
   return custom ?? DEFAULT_TEMPLATES[kind];
+}
+
+function applyPathFromSettings(shop: { settings_json: string }): string {
+  const blob = parseSettingsBlob(shop.settings_json);
+  const ap = blob.app_proxy as { applyPath?: string } | undefined;
+  return ap?.applyPath?.trim() || '/pages/wholesale-apply';
 }
 
 export async function sendApplicationEmailHandler(
@@ -106,7 +140,7 @@ export async function sendApplicationEmailHandler(
   }
 
   const template = pickTemplate(env, shopRow, payload.kind);
-  const vars = buildTemplateVars(shopDomain, detail, payload.kind);
+  const vars = await buildTemplateVars(env, shopRow, shopDomain, detail, payload.kind);
 
   const subject = renderTemplate(template.subject, vars);
   const html = renderTemplate(template.body, vars);
@@ -139,25 +173,36 @@ export async function sendApplicationEmailHandler(
   }
 }
 
-function buildTemplateVars(
+async function buildTemplateVars(
+  env: Env,
+  shopRow: { id: number; settings_json: string },
   shopDomain: string,
   detail: ApplicationDetail,
   kind: ApplicationEmailKind,
-): Record<string, string> {
+): Promise<Record<string, string>> {
   const reference = `B2B-${detail.shop_id}-${detail.id.toString(36).toUpperCase()}`;
+  const shopOrigin = `https://${shopDomain}`;
+  const accountUrl = `${shopOrigin}/account`;
+  let resumeUrl = '';
+  if (kind === 'needs_info') {
+    const applyPath = applyPathFromSettings(shopRow);
+    const token = await signResumeToken(detail.id, detail.email, shopDomain, env.MASTER_KEY);
+    resumeUrl = `${shopOrigin}${applyPath}?resume=${encodeURIComponent(token)}`;
+  }
   return {
     companyName: detail.form.companyName ?? 'there',
     email: detail.email,
     reference,
     notes: detail.decision_notes ?? '',
     shopDomain,
-    // Placeholders the queue handler doesn't yet fill in (we only have the
-    // magic link after Customer Account API mints one); merchants can edit
-    // the template to omit them, or we'll wire them in a follow-up.
+    shopOrigin,
+    accountUrl,
     magicLinkParagraph:
       kind === 'approved'
-        ? "We've sent you a login link separately so you can place your first order."
+        ? "We've sent a sign-in link to this address separately — open it to set your " +
+          'password and place your first order.'
         : '',
-    resumeUrl: '', // populated in Phase 1J when we expose the buyer storefront URL
+    resumeUrl,
   };
 }
+

@@ -106,12 +106,12 @@ downloaded an asset, and was warned at a minimum-order violation.
 State persists in `shops.settings_json.onboarding` (lib/onboarding-store.ts). Status lifecycle is pending → completed | dismissed; admin home surfaces a continue-setup banner whenever status is pending. Backed by 11 new unit tests covering state transitions + the magic-link mutation.
 
 ### 1J — §7 Buyer onboarding
-- [ ] **P0** Pre-application content block template (merchant-installable).
-- [ ] **P0** Submission confirmation page + email (reference number).
-- [ ] **P0** Approval email + magic link (7-day TTL).
-- [ ] **P0** First-login tour (Day-1 stubs for Day-2 features).
-- [ ] **P0** Activation nudges (14/30/60 day) via Workers Cron Triggers + Resend.
-- [ ] **P0** Day-1 company profile view (read-only tier, team, tax-exempt status).
+- [x] **P0** Pre-application content block template (merchant-installable). *(`extensions/theme-app-extension/blocks/b2b-preapplication.liquid` — body-target App Embed with a configurable `landing_path`; merchant edits heading / subheading / bullet list / CTA label + path / footnote from the theme editor. Pure Liquid, no JS, so it renders fast and works without the App Proxy. CTA defaults point at the `b2b-application` block's default `apply_path`.)*
+- [x] **P0** Submission confirmation page + email (reference number). *(Confirmation card with the `B2B-<shop>-<id>` reference was wired in 1E — see `b2b-application.js::onSubmit` and the `submitted` email template in `handlers/send-application-email.ts`. Phase 1J adds the `accountUrl` template var (`https://<shop>/account`) and a working `resumeUrl` for the `needs_info` template, derived from the merchant's `apply_path` plus a fresh 14-day resume token.)*
+- [x] **P0** Approval email + magic link (7-day TTL). *(Magic-link email is `customerSendAccountInviteEmail` (Shopify default 7-day TTL) — wired in 1I. Phase 1J's `approved` template now references the merchant-side `{{accountUrl}}` so the buyer has a deep link into the customer-account portal once they've signed in. Merchants can still customise via `shops.settings_json.emailTemplates.approved`.)*
+- [x] **P0** First-login tour (Day-1 stubs for Day-2 features). *(KV-backed dismissal in `lib/tour-state.ts` (key `tour:<shop_id>:<sha256(customer_gid)>`, 180-day TTL). New Worker routes `GET /customer-account/tour-status` + `POST /customer-account/tour-dismiss`. UI in `extensions/customer-account-asset-portal/src/TourBanner.tsx` — lists Day-1 features and three Day-2 teasers per DECISIONS #13 ordering (Quick Order, Saved Lists, Quotes).)*
+- [x] **P0** Activation nudges (14/30/60 day) via Workers Cron Triggers + Resend. *(Daily cron `0 9 * * *` in `wrangler.toml` fires `scheduled` → `runActivationNudgesScan` (`handlers/activation-nudges.ts`). For each approved application within the 14-70 day window, the handler picks the nudge milestone, checks `application_nudges` (new table in `migrations/0004_phase1j_nudges.sql`) for prior sends, then probes Shopify orders via `lib/shopify-orders.ts` and skips active buyers. Enqueues through the existing `_internal/send-application-email` queue with three new templates (`nudge_14d/30d/60d`).)*
+- [x] **P0** Day-1 company profile view (read-only tier, team, tax-exempt status). *(`lib/company-profile.ts` assembles tier (from D1) + company contacts + locations + per-location tax-exempt flag (via Admin GraphQL). New route `GET /customer-account/profile`. UI in `extensions/customer-account-asset-portal/src/CompanyProfileView.tsx`, accessible via a tab on the existing customer-account asset portal page so we keep a single `customer-account.page.render` target.)*
 
 ---
 

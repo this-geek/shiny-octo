@@ -58,3 +58,63 @@ export async function downloadAsset(
   const filename = match ? decodeURIComponent(match[1]) : `asset-${assetId}`;
   return { kind: 'blob', blob: await res.blob(), filename };
 }
+
+export interface CompanyProfileResponse {
+  company: {
+    id: string;
+    name: string;
+    contacts: Array<{
+      customer_id: string;
+      name: string;
+      email: string;
+      is_main: boolean;
+    }>;
+    locations: Array<{ id: string; name: string; tax_exempt: boolean }>;
+  } | null;
+  tier: {
+    id: number;
+    name: string;
+    discount_type: 'percent' | 'fixed_amount';
+    discount_value: number;
+  } | null;
+  buyer: { customer_id: string; is_b2b: boolean };
+}
+
+export async function fetchCompanyProfile(
+  workerBaseUrl: string,
+  token: string,
+): Promise<CompanyProfileResponse> {
+  const res = await fetch(`${workerBaseUrl.replace(/\/$/, '')}/customer-account/profile`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`profile ${res.status}`);
+  return (await res.json()) as CompanyProfileResponse;
+}
+
+export interface TourStatusResponse {
+  show_tour: boolean;
+  day1_features: Array<{ id: string; title: string; description: string }>;
+  day2_teasers: Array<{ id: string; title: string; description: string }>;
+}
+
+export async function fetchTourStatus(
+  workerBaseUrl: string,
+  token: string,
+): Promise<TourStatusResponse> {
+  const res = await fetch(`${workerBaseUrl.replace(/\/$/, '')}/customer-account/tour-status`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`tour-status ${res.status}`);
+  return (await res.json()) as TourStatusResponse;
+}
+
+export async function dismissTour(
+  workerBaseUrl: string,
+  token: string,
+): Promise<void> {
+  const res = await fetch(`${workerBaseUrl.replace(/\/$/, '')}/customer-account/tour-dismiss`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`tour-dismiss ${res.status}`);
+}

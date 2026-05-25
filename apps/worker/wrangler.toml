@@ -49,6 +49,12 @@ queue = "b2b-webhook-queue"
 max_batch_size = 10
 max_batch_timeout = 5
 
+# Daily activation-nudge sweep (Phase 1J §7). Runs at 09:00 UTC ≈ 09:00 NZST
+# in summer / 10:00 in winter — early enough that nudges land in the inbox
+# by the start of a business day in the pilot timezone.
+[triggers]
+crons = ["0 9 * * *"]
+
 [vars]
 APP_URL = "https://b2b-companion.selling.workers.dev"
 SHOPIFY_API_VERSION = "2026-04"

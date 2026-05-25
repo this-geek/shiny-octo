@@ -14,6 +14,8 @@ import {
   Heading,
 } from '@shopify/ui-extensions-react/customer-account';
 import { fetchAssets, downloadAsset, type AssetItem } from './api';
+import CompanyProfileView from './CompanyProfileView';
+import TourBanner from './TourBanner';
 
 function bytesFmt(b: number | null): string {
   if (!b) return '';
@@ -23,12 +25,15 @@ function bytesFmt(b: number | null): string {
   return `${(b / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+type View = 'assets' | 'profile';
+
 function AssetPortal() {
   const api = useApi();
   const workerBaseUrl = (api as { settings?: { current?: { worker_base_url?: string } } })
     ?.settings?.current?.worker_base_url
     ?? '';
 
+  const [view, setView] = useState<View>('assets');
   const [assets, setAssets] = useState<AssetItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
@@ -86,31 +91,72 @@ function AssetPortal() {
     }
   }
 
+  const header = (
+    <BlockStack spacing="base">
+      <TourBanner workerBaseUrl={workerBaseUrl} />
+      <InlineStack spacing="tight">
+        <Button
+          kind={view === 'assets' ? 'primary' : 'secondary'}
+          onPress={() => setView('assets')}
+        >
+          Assets
+        </Button>
+        <Button
+          kind={view === 'profile' ? 'primary' : 'secondary'}
+          onPress={() => setView('profile')}
+        >
+          Company profile
+        </Button>
+      </InlineStack>
+    </BlockStack>
+  );
+
+  if (view === 'profile') {
+    return (
+      <Page title="Wholesale account">
+        <BlockStack spacing="loose">
+          {header}
+          <CompanyProfileView workerBaseUrl={workerBaseUrl} />
+        </BlockStack>
+      </Page>
+    );
+  }
+
   if (error) {
     return (
-      <Page title="Dealer assets">
-        <Banner status="critical">{error}</Banner>
+      <Page title="Wholesale account">
+        <BlockStack spacing="loose">
+          {header}
+          <Banner status="critical">{error}</Banner>
+        </BlockStack>
       </Page>
     );
   }
   if (assets === null) {
     return (
-      <Page title="Dealer assets">
-        <Spinner />
+      <Page title="Wholesale account">
+        <BlockStack spacing="loose">
+          {header}
+          <Spinner />
+        </BlockStack>
       </Page>
     );
   }
   if (assets.length === 0) {
     return (
-      <Page title="Dealer assets">
-        <Text>No assets available for your account yet.</Text>
+      <Page title="Wholesale account">
+        <BlockStack spacing="loose">
+          {header}
+          <Text>No assets available for your account yet.</Text>
+        </BlockStack>
       </Page>
     );
   }
 
   return (
-    <Page title="Dealer assets">
+    <Page title="Wholesale account">
       <BlockStack spacing="loose">
+        {header}
         <InlineStack spacing="base">
           <TextField label="Search" value={filter} onChange={setFilter} />
           <Select

@@ -5,7 +5,14 @@ import {
   INTERNAL_SEND_APPLICATION_EMAIL,
 } from '../routes/webhooks.js';
 
-export type ApplicationEmailKind = 'submitted' | 'approved' | 'rejected' | 'needs_info';
+export type ApplicationEmailKind =
+  | 'submitted'
+  | 'approved'
+  | 'rejected'
+  | 'needs_info'
+  | NudgeKind;
+
+export type NudgeKind = 'nudge_14d' | 'nudge_30d' | 'nudge_60d';
 
 interface InternalJobMessage {
   id: string;

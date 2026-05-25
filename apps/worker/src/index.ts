@@ -5,6 +5,8 @@ import { webhooksRouter, handleWebhookQueue } from './routes/webhooks.js';
 import { adminRouter } from './routes/admin.js';
 import { appProxyRouter } from './routes/app-proxy.js';
 import { customerAccountRouter } from './routes/customer-account.js';
+import { runActivationNudgesScan } from './handlers/activation-nudges.js';
+import { log } from './lib/logger.js';
 
 interface WebhookQueueMessage {
   id: string;
@@ -27,5 +29,15 @@ export default {
   fetch: app.fetch,
   async queue(batch: MessageBatch<WebhookQueueMessage>, env: Env): Promise<void> {
     await handleWebhookQueue(batch, env);
+  },
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      runActivationNudgesScan(env).catch(err => {
+        log('error', 'scheduled: activation-nudges scan failed', {
+          cron: event.cron,
+          error: String(err),
+        });
+      }),
+    );
   },
 };
