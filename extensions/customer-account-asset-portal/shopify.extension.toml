@@ -5,13 +5,15 @@ name = "B2B Dealer Asset Portal"
 handle = "b2b-asset-portal"
 type = "ui_extension"
 
+  # customer-account.page.render must be the only target on an extension
+  # (Shopify validator: "The target customer-account.page.render cannot be
+  # combined with any other targets"). The order-index link block is split
+  # into a sibling extension (b2b-asset-portal-link) if/when we add one
+  # back; merchants can also surface the page directly from the customer
+  # account nav menu.
   [[extensions.targeting]]
   module = "./src/AssetPortalPage.tsx"
   target = "customer-account.page.render"
-
-  [[extensions.targeting]]
-  module = "./src/AssetPortalLink.tsx"
-  target = "customer-account.order-index.block.render"
 
   [extensions.settings]
 
