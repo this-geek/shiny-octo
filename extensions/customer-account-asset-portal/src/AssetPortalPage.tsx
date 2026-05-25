@@ -1,21 +1,36 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  reactExtension,
-  useApi,
-  Page,
-  BlockStack,
-  InlineStack,
-  TextField,
-  Select,
-  Button,
-  Text,
-  Banner,
-  Spinner,
-  Heading,
-} from '@shopify/ui-extensions-react/customer-account';
-import { fetchAssets, downloadAsset, type AssetItem } from './api';
+/**
+ * Customer Account UI extension — dealer portal (Phase 1H+, Phase 1J UX).
+ *
+ * Built on Shopify's 2026.4 Preact + web-component runtime. The host
+ * mounts each target's `extension()` export as the entry point; we render
+ * a Preact tree of `<s-*>` web components into document.body, which the
+ * runtime then bridges to the customer account surface.
+ *
+ * UX:
+ *   - TourBanner at top — first-login feature tour (KV-backed dismissal)
+ *   - Tabs: Assets · Company profile
+ *   - Assets tab: searchable, type-filterable list with stream-through download
+ *   - Profile tab: Day-1 read-only company / tier / locations / team
+ *
+ * Auth: Customer Account session token (api.sessionToken.get()), passed as
+ * a Bearer header to the Worker's /customer-account/* routes. The Worker
+ * re-checks visibility + bandwidth on every list/download.
+ *
+ * Worker base URL comes from the merchant-configured `worker_base_url`
+ * extension setting (declared in shopify.extension.toml).
+ */
+
+import '@shopify/ui-extensions/preact';
+import { render } from 'preact';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import { useApi } from '@shopify/ui-extensions/customer-account/preact';
+import { downloadAsset, fetchAssets, type AssetItem } from './api';
 import CompanyProfileView from './CompanyProfileView';
 import TourBanner from './TourBanner';
+
+export default function extension() {
+  render(<AssetPortal />, document.body);
+}
 
 function bytesFmt(b: number | null): string {
   if (!b) return '';
@@ -28,10 +43,9 @@ function bytesFmt(b: number | null): string {
 type View = 'assets' | 'profile';
 
 function AssetPortal() {
-  const api = useApi();
-  const workerBaseUrl = (api as { settings?: { current?: { worker_base_url?: string } } })
-    ?.settings?.current?.worker_base_url
-    ?? '';
+  const api = useApi<'customer-account.page.render'>();
+  const settings = api.settings.value as { worker_base_url?: string } | undefined;
+  const workerBaseUrl = settings?.worker_base_url ?? '';
 
   const [view, setView] = useState<View>('assets');
   const [assets, setAssets] = useState<AssetItem[] | null>(null);
@@ -41,6 +55,10 @@ function AssetPortal() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!workerBaseUrl) {
+      setError('Worker base URL is not configured. Set it in the extension settings.');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -66,136 +84,138 @@ function AssetPortal() {
     });
   }, [assets, filter, type]);
 
-  async function onDownload(asset: AssetItem) {
-    setDownloadingId(asset.id);
-    setError(null);
-    try {
-      const token = await api.sessionToken.get();
-      const r = await downloadAsset(workerBaseUrl, token, asset.id);
-      if (r.kind === 'link') {
-        window.open(r.url, '_blank', 'noopener');
-      } else {
-        const url = URL.createObjectURL(r.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = r.filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+  const onDownload = useCallback(
+    async (asset: AssetItem) => {
+      setDownloadingId(asset.id);
+      setError(null);
+      try {
+        const token = await api.sessionToken.get();
+        const r = await downloadAsset(workerBaseUrl, token, asset.id);
+        if (r.kind === 'link') {
+          window.open(r.url, '_blank', 'noopener');
+        } else {
+          const url = URL.createObjectURL(r.blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = r.filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+      } catch (e) {
+        setError(String((e as Error).message ?? e));
+      } finally {
+        setDownloadingId(null);
       }
-    } catch (e) {
-      setError(String((e as Error).message ?? e));
-    } finally {
-      setDownloadingId(null);
-    }
-  }
+    },
+    [api, workerBaseUrl],
+  );
 
   const header = (
-    <BlockStack spacing="base">
+    <s-stack direction="block" gap="base">
       <TourBanner workerBaseUrl={workerBaseUrl} />
-      <InlineStack spacing="tight">
-        <Button
-          kind={view === 'assets' ? 'primary' : 'secondary'}
-          onPress={() => setView('assets')}
+      <s-stack direction="inline" gap="tight">
+        <s-button
+          variant={view === 'assets' ? 'primary' : 'secondary'}
+          onclick={() => setView('assets')}
         >
           Assets
-        </Button>
-        <Button
-          kind={view === 'profile' ? 'primary' : 'secondary'}
-          onPress={() => setView('profile')}
+        </s-button>
+        <s-button
+          variant={view === 'profile' ? 'primary' : 'secondary'}
+          onclick={() => setView('profile')}
         >
           Company profile
-        </Button>
-      </InlineStack>
-    </BlockStack>
+        </s-button>
+      </s-stack>
+    </s-stack>
   );
 
   if (view === 'profile') {
     return (
-      <Page title="Wholesale account">
-        <BlockStack spacing="loose">
+      <s-page heading="Wholesale account">
+        <s-stack direction="block" gap="loose">
           {header}
           <CompanyProfileView workerBaseUrl={workerBaseUrl} />
-        </BlockStack>
-      </Page>
+        </s-stack>
+      </s-page>
     );
   }
 
   if (error) {
     return (
-      <Page title="Wholesale account">
-        <BlockStack spacing="loose">
+      <s-page heading="Wholesale account">
+        <s-stack direction="block" gap="loose">
           {header}
-          <Banner status="critical">{error}</Banner>
-        </BlockStack>
-      </Page>
+          <s-banner tone="critical">{error}</s-banner>
+        </s-stack>
+      </s-page>
     );
   }
   if (assets === null) {
     return (
-      <Page title="Wholesale account">
-        <BlockStack spacing="loose">
+      <s-page heading="Wholesale account">
+        <s-stack direction="block" gap="loose">
           {header}
-          <Spinner />
-        </BlockStack>
-      </Page>
+          <s-spinner accessibilityLabel="Loading assets" />
+        </s-stack>
+      </s-page>
     );
   }
   if (assets.length === 0) {
     return (
-      <Page title="Wholesale account">
-        <BlockStack spacing="loose">
+      <s-page heading="Wholesale account">
+        <s-stack direction="block" gap="loose">
           {header}
-          <Text>No assets available for your account yet.</Text>
-        </BlockStack>
-      </Page>
+          <s-text>No assets available for your account yet.</s-text>
+        </s-stack>
+      </s-page>
     );
   }
 
   return (
-    <Page title="Wholesale account">
-      <BlockStack spacing="loose">
+    <s-page heading="Wholesale account">
+      <s-stack direction="block" gap="loose">
         {header}
-        <InlineStack spacing="base">
-          <TextField label="Search" value={filter} onChange={setFilter} />
-          <Select
+        <s-stack direction="inline" gap="base">
+          <s-text-field
+            label="Search"
+            value={filter}
+            oninput={(e: Event) => setFilter((e.target as HTMLInputElement).value)}
+          />
+          <s-select
             label="Type"
             value={type}
-            onChange={(v: string) => setType(v as typeof type)}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'file', label: 'Files' },
-              { value: 'image', label: 'Images' },
-              { value: 'video', label: 'Videos' },
-              { value: 'link', label: 'Links' },
-            ]}
-          />
-        </InlineStack>
+            onchange={(e: Event) => setType((e.target as HTMLSelectElement).value as typeof type)}
+          >
+            <s-option value="all">All</s-option>
+            <s-option value="file">Files</s-option>
+            <s-option value="image">Images</s-option>
+            <s-option value="video">Videos</s-option>
+            <s-option value="link">Links</s-option>
+          </s-select>
+        </s-stack>
 
         {filtered.length === 0 ? (
-          <Text appearance="subdued">No assets match.</Text>
+          <s-text>No assets match.</s-text>
         ) : (
           filtered.map(a => (
-            <BlockStack key={a.id} spacing="tight">
-              <Heading level={3}>{a.title}</Heading>
-              {a.description && <Text appearance="subdued">{a.description}</Text>}
-              <Text appearance="subdued">
-                {[a.type, bytesFmt(a.file_size_bytes)].filter(Boolean).join(' · ')}
-              </Text>
-              <Button
-                kind="primary"
-                onPress={() => onDownload(a)}
-                loading={downloadingId === a.id}
+            <s-stack key={a.id} direction="block" gap="tight">
+              <s-heading>{a.title}</s-heading>
+              {a.description ? <s-text>{a.description}</s-text> : null}
+              <s-text>{[a.type, bytesFmt(a.file_size_bytes)].filter(Boolean).join(' · ')}</s-text>
+              <s-button
+                variant="primary"
+                loading={downloadingId === a.id ? 'true' : undefined}
+                onclick={() => void onDownload(a)}
               >
                 Download
-              </Button>
-            </BlockStack>
+              </s-button>
+            </s-stack>
           ))
         )}
-      </BlockStack>
-    </Page>
+      </s-stack>
+    </s-page>
   );
 }
-
-export default reactExtension('customer-account.page.render', () => <AssetPortal />);

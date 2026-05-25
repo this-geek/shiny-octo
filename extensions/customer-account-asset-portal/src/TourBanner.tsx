@@ -1,18 +1,3 @@
-import { useEffect, useState } from 'react';
-import {
-  Banner,
-  BlockStack,
-  Button,
-  InlineStack,
-  Text,
-  useApi,
-} from '@shopify/ui-extensions-react/customer-account';
-import { dismissTour, fetchTourStatus, type TourStatusResponse } from './api';
-
-interface Props {
-  workerBaseUrl: string;
-}
-
 /**
  * First-login tour for buyers (Phase 1J §7).
  *
@@ -20,13 +5,26 @@ interface Props {
  * cleared browser doesn't re-show. Lists Day-1 features (already shipped) and
  * Day-2 teasers (per DECISIONS #13 ordering) so the buyer knows what's
  * coming.
+ *
+ * Migrated to the 2026.4 Preact + web-component surface — same behaviour as
+ * the React original.
  */
-export default function TourBanner({ workerBaseUrl }: Props): JSX.Element | null {
-  const api = useApi();
+
+import { useEffect, useState } from 'preact/hooks';
+import { useApi } from '@shopify/ui-extensions/customer-account/preact';
+import { dismissTour, fetchTourStatus, type TourStatusResponse } from './api';
+
+interface Props {
+  workerBaseUrl: string;
+}
+
+export default function TourBanner({ workerBaseUrl }: Props) {
+  const api = useApi<'customer-account.page.render'>();
   const [status, setStatus] = useState<TourStatusResponse | null>(null);
   const [dismissing, setDismissing] = useState(false);
 
   useEffect(() => {
+    if (!workerBaseUrl) return;
     let cancelled = false;
     (async () => {
       try {
@@ -58,30 +56,34 @@ export default function TourBanner({ workerBaseUrl }: Props): JSX.Element | null
   if (!status || !status.show_tour) return null;
 
   return (
-    <Banner status="info" title="Welcome to your wholesale account">
-      <BlockStack spacing="base">
-        <BlockStack spacing="tight">
-          <Text emphasis="bold">Available now</Text>
+    <s-banner tone="info" heading="Welcome to your wholesale account">
+      <s-stack direction="block" gap="base">
+        <s-stack direction="block" gap="tight">
+          <s-text emphasis="bold">Available now</s-text>
           {status.day1_features.map(f => (
-            <Text key={f.id}>
+            <s-text key={f.id}>
               · {f.title} — {f.description}
-            </Text>
+            </s-text>
           ))}
-        </BlockStack>
-        <BlockStack spacing="tight">
-          <Text emphasis="bold">Coming soon</Text>
+        </s-stack>
+        <s-stack direction="block" gap="tight">
+          <s-text emphasis="bold">Coming soon</s-text>
           {status.day2_teasers.map(f => (
-            <Text key={f.id} appearance="subdued">
+            <s-text key={f.id}>
               · {f.title} — {f.description}
-            </Text>
+            </s-text>
           ))}
-        </BlockStack>
-        <InlineStack>
-          <Button kind="secondary" onPress={onDismiss} loading={dismissing}>
+        </s-stack>
+        <s-stack direction="inline">
+          <s-button
+            variant="secondary"
+            loading={dismissing ? 'true' : undefined}
+            onclick={() => void onDismiss()}
+          >
             Got it, don't show again
-          </Button>
-        </InlineStack>
-      </BlockStack>
-    </Banner>
+          </s-button>
+        </s-stack>
+      </s-stack>
+    </s-banner>
   );
 }

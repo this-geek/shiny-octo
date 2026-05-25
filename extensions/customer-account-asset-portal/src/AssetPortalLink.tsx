@@ -1,23 +1,23 @@
-import {
-  reactExtension,
-  Link,
-  Text,
-  BlockStack,
-} from '@shopify/ui-extensions-react/customer-account';
-
 /**
- * Surfaces a link to the dealer asset portal on the order index page so
- * buyers can find it without hunting through the nav menu.
+ * Order-index block that surfaces a link to the dealer asset portal so
+ * buyers can find it without hunting through the customer-account nav.
+ *
+ * Same Preact + web-component pattern as AssetPortalPage.tsx; mounted by
+ * Shopify's runtime via the `extension()` default export.
  */
-function AssetPortalLink() {
-  return (
-    <BlockStack>
-      <Text emphasis="bold">Dealer resources</Text>
-      <Link to="extension:b2b-asset-portal/">Browse dealer assets</Link>
-    </BlockStack>
-  );
+
+import '@shopify/ui-extensions/preact';
+import { render } from 'preact';
+
+export default function extension() {
+  render(<AssetPortalLink />, document.body);
 }
 
-export default reactExtension('customer-account.order-index.block.render', () => (
-  <AssetPortalLink />
-));
+function AssetPortalLink() {
+  return (
+    <s-stack direction="block" gap="tight">
+      <s-text emphasis="bold">Dealer resources</s-text>
+      <s-link to="extension:b2b-asset-portal/">Browse dealer assets</s-link>
+    </s-stack>
+  );
+}
