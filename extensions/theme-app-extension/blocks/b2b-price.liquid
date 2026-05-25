@@ -15,7 +15,8 @@
   metafield b2b.b2b_only == true and the customer is not B2B, we render a
   server-side <style> rule that hides the .product-form and .price selectors
   (Dawn + most modern themes). This is defence-in-depth alongside the
-  template-level 404 guard in snippets/b2b-product-guard.liquid (DECISIONS #6).
+  template-level 404 guard the merchant pastes into their theme per
+  MANUAL_STEPS.md §10.2 (DECISIONS #6).
 {% endcomment %}
 
 {%- if template contains 'product' and product -%}
@@ -45,7 +46,7 @@
     data-price-display="{{ block.settings.price_display }}"
   ></div>
 
-  {{ 'b2b-price.js' | asset_url | script_tag }}
+  <script src="{{ 'b2b-price.js' | asset_url }}" defer></script>
 {%- endif -%}
 
 {% schema %}

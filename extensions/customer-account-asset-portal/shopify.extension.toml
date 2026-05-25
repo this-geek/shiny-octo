@@ -19,5 +19,4 @@ type = "ui_extension"
     key = "worker_base_url"
     type = "single_line_text_field"
     name = "Worker base URL"
-    description = "Origin of the B2B Companion Worker (e.g. https://b2b-companion.selling.workers.dev). The extension calls /customer-account/* on this host."
-    required = true
+    description = "Origin of the B2B Companion Worker (e.g. https://b2b-companion.selling.workers.dev). The extension calls /customer-account/* on this host. Required — the portal renders an error banner if unset."
