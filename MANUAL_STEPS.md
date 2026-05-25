@@ -555,3 +555,32 @@ When the cap is hit, `GET /assets/download/:id` returns HTTP 429 with `{"error":
 - **Bulk tag**. Needs an `asset_tags` table (no schema today).
 - **R2 hard-delete cron** for soft-deleted assets older than 30 days.
 
+## 13. Dealer portal link block (DECISIONS #18)
+
+The buyer-facing portal is rendered by the Worker and served via Shopify App Proxy at `<shop-domain>/apps/<proxy-subpath>/portal` (the subpath comes from `shopify.app.toml -> [app_proxy] -> subpath`, default `b2b`). The customer-account UI extension `b2b-portal-link` is a single-target block (`customer-account.order-index.block.render`) whose only job is to surface a link to that portal from inside the customer account chrome.
+
+After `shopify app deploy` lands the extension, **the merchant must paste the portal URL into the block's settings** — the block renders nothing until they do.
+
+### 13.1 Configure the link block per shop
+
+1. Shopify admin → **Settings → Customer accounts → Customize** (the "Manage" or "Customize order status" entry that opens the customer-account theme editor).
+2. Navigate to the **Order index** page in the left rail.
+3. Click **Add block → Apps → B2B Dealer Portal Link**.
+4. In the block's settings, set:
+   - **Portal URL** — required. Full URL on the shop's domain, e.g. `https://your-shop.myshopify.com/apps/b2b/portal`. Must match `[app_proxy] -> prefix + subpath` in `shopify.app.toml` followed by `/portal`. If you use a custom primary domain, use that instead of `myshopify.com`.
+   - **Card heading** — optional. Defaults to "Dealer portal".
+   - **Call-to-action label** — optional. Defaults to "Open dealer portal".
+5. **Save** the customer-account customisation.
+
+### 13.2 Verify
+
+- Sign in as a B2B buyer (a customer attached to a Shopify Company).
+- Open **My account → Orders**.
+- The "Dealer portal" card should be visible with the configured CTA.
+- Click the CTA. You should land on `<shop>/apps/b2b/portal` showing the Assets / Profile tabs and (on first visit) the welcome tour.
+- Sign in as a non-B2B customer. The card is still visible (Shopify renders blocks for all buyers), but clicking through lands on the "not enabled for this account" page served by the Worker.
+
+### 13.3 Why this is a manual step
+
+Every merchant has a different shop domain (or a custom primary domain) and may run multiple stores from one app install, so the portal URL can't be hard-coded into the block. It's a one-time setting per shop — add it to your merchant onboarding checklist. The block intentionally renders nothing when the URL is empty so a half-installed app doesn't expose a broken link to buyers.
+
