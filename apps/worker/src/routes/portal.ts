@@ -1,7 +1,11 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env } from '../types.js';
-import { resolveBuyerByCustomerId } from '../lib/buyer-context.js';
+import { resolveBuyerByCustomerId, type BuyerCtx } from '../lib/buyer-context.js';
 import { hashIdAsync, log } from '../lib/logger.js';
+import { buildAssetListResponse, buildAssetDownloadResponse } from '../lib/asset-serve.js';
+import { buildCompanyProfile } from '../lib/company-profile.js';
+import { dismissTour, hasDismissedTour } from '../lib/tour-state.js';
 
 /**
  * Buyer-facing dealer asset portal, rendered as a Worker-hosted HTML app
@@ -131,6 +135,109 @@ function shellPage(boot: { shop_domain: string; company_id: string | null; tier_
 </body>
 </html>`;
 }
+
+type ProxyBuyerResult =
+  | { ok: true; buyer: BuyerCtx }
+  | { ok: false; response: Response };
+
+async function resolveBuyerFromProxyQuery(
+  c: Context<{ Bindings: Env }>,
+): Promise<ProxyBuyerResult> {
+  const shopDomain = c.req.query('shop');
+  const customerId = c.req.query('logged_in_customer_id');
+  if (!shopDomain) {
+    return { ok: false, response: c.json({ error: 'missing shop' }, 400) };
+  }
+  if (!customerId) {
+    return { ok: false, response: c.json({ error: 'login required' }, 401) };
+  }
+  const r = await resolveBuyerByCustomerId(c.env, shopDomain, customerId);
+  if (!r.ok) {
+    return {
+      ok: false,
+      response: c.json({ error: r.error }, r.status as 400 | 401 | 404 | 502),
+    };
+  }
+  return { ok: true, buyer: r.buyer };
+}
+
+portalRouter.get('/api/assets/list', async c => {
+  const r = await resolveBuyerFromProxyQuery(c);
+  if (!r.ok) return r.response;
+  const body = await buildAssetListResponse(c.env, r.buyer);
+  return c.json(body);
+});
+
+portalRouter.get('/api/profile', async c => {
+  const r = await resolveBuyerFromProxyQuery(c);
+  if (!r.ok) return r.response;
+  try {
+    const profile = await buildCompanyProfile(c.env, r.buyer);
+    return c.json(profile);
+  } catch (err) {
+    return c.json({ error: String((err as Error).message ?? err) }, 502);
+  }
+});
+
+portalRouter.get('/api/tour-status', async c => {
+  const r = await resolveBuyerFromProxyQuery(c);
+  if (!r.ok) return r.response;
+  const dismissed = await hasDismissedTour(
+    c.env.KV_SESSIONS,
+    r.buyer.shop_id,
+    r.buyer.customer_id,
+  );
+  return c.json({
+    show_tour: !dismissed && r.buyer.is_b2b,
+    day1_features: [
+      { id: 'assets', title: 'Dealer assets', description: 'Download line sheets, price lists, and product photography.' },
+      { id: 'profile', title: 'Your company profile', description: 'See your tier, team, and tax-exempt status.' },
+      { id: 'pricing', title: 'Wholesale pricing', description: 'Tier discounts apply automatically at checkout.' },
+    ],
+    day2_teasers: [
+      { id: 'quick_order', title: 'Quick order form', description: 'Coming soon — paste a SKU list and check out in seconds.' },
+      { id: 'saved_lists', title: 'Saved shopping lists', description: 'Coming soon — save common orders and reorder in one click.' },
+      { id: 'quotes', title: 'Request a quote', description: 'Coming soon — for bulk orders, get a custom quote.' },
+    ],
+  });
+});
+
+portalRouter.post('/api/tour-dismiss', async c => {
+  const r = await resolveBuyerFromProxyQuery(c);
+  if (!r.ok) return r.response;
+  await dismissTour(c.env.KV_SESSIONS, r.buyer.shop_id, r.buyer.customer_id);
+  return c.json({ dismissed: true });
+});
+
+portalRouter.get('/api/assets/download/:id', async c => {
+  const r = await resolveBuyerFromProxyQuery(c);
+  if (!r.ok) return r.response;
+  const result = await buildAssetDownloadResponse(
+    c.env,
+    r.buyer,
+    c.req.param('id'),
+    c.req.header('CF-Connecting-IP') ?? null,
+  );
+  switch (result.kind) {
+    case 'forbidden':
+      return c.json({ error: 'forbidden' }, 403);
+    case 'bad_request':
+      return c.json({ error: 'invalid id' }, 400);
+    case 'not_found':
+      return c.json({ error: 'not found' }, 404);
+    case 'rate_limited':
+      return c.json(
+        { error: 'monthly download limit reached; contact the merchant' },
+        429,
+      );
+    case 'server_error':
+      return c.json({ error: result.reason }, 500);
+    case 'link':
+      return c.json({ url: result.url, expires_in: null });
+    case 'stream':
+      return new Response(result.body, { status: 200, headers: result.headers });
+  }
+});
 
 portalRouter.get('/', async c => {
   const shopDomain = c.req.query('shop');
