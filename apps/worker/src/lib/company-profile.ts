@@ -1,10 +1,11 @@
 /**
  * Day-1 company profile data assembly (Phase 1J §7).
  *
- * Pulls together the read-only "your wholesale account" view shown in the
- * customer-account UI extension. Source of truth is Shopify for the Company
- * shape (name, contacts, locations, tax-exempt flag); the tier name +
- * discount come from our D1 mapping.
+ * Pulls together the read-only "your wholesale account" view shown in
+ * the buyer-facing dealer portal (Worker-rendered, served via App Proxy
+ * at /proxy/portal/api/profile). Source of truth is Shopify for the
+ * Company shape (name, contacts, locations, tax-exempt flag); the tier
+ * name + discount come from our D1 mapping.
  */
 
 import type { Env } from '../types.js';

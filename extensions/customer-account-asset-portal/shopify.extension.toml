@@ -1,24 +1,38 @@
 api_version = "2026-04"
 
 [[extensions]]
-name = "B2B Dealer Asset Portal"
-handle = "b2b-asset-portal"
+name = "B2B Dealer Portal Link"
+handle = "b2b-portal-link"
 type = "ui_extension"
 
-  # customer-account.page.render must be the only target on an extension
-  # (Shopify validator: "The target customer-account.page.render cannot be
-  # combined with any other targets"). The order-index link block is split
-  # into a sibling extension (b2b-asset-portal-link) if/when we add one
-  # back; merchants can also surface the page directly from the customer
-  # account nav menu.
+  # Single-target block — renders a "Open dealer portal" card on the
+  # buyer's order index. The actual portal is served by the Worker via
+  # Shopify App Proxy at <shop>/apps/<subpath>/portal (configured in
+  # shopify.app.toml -> [app_proxy]). This block exists only to surface
+  # the link from inside the customer account chrome; using a single
+  # target avoids the validator's "customer-account.page.render cannot
+  # be combined with any other targets" error that blocked the previous
+  # full-page extension.
   [[extensions.targeting]]
-  module = "./src/AssetPortalPage.tsx"
-  target = "customer-account.page.render"
+  module = "./src/PortalLinkBlock.tsx"
+  target = "customer-account.order-index.block.render"
 
   [extensions.settings]
 
     [[extensions.settings.fields]]
-    key = "worker_base_url"
+    key = "portal_url"
     type = "single_line_text_field"
-    name = "Worker base URL"
-    description = "Origin of the B2B Companion Worker (e.g. https://b2b-companion.selling.workers.dev). The extension calls /customer-account/* on this host. Required — the portal renders an error banner if unset."
+    name = "Portal URL"
+    description = "Full URL to the dealer portal on the buyer's shop, e.g. https://your-shop.myshopify.com/apps/b2b/portal. Matches the [app_proxy] config in shopify.app.toml. The block renders nothing if this is empty."
+
+    [[extensions.settings.fields]]
+    key = "heading"
+    type = "single_line_text_field"
+    name = "Card heading"
+    description = "Heading shown above the link. Defaults to \"Dealer portal\" when empty."
+
+    [[extensions.settings.fields]]
+    key = "cta_label"
+    type = "single_line_text_field"
+    name = "Call-to-action label"
+    description = "Link text. Defaults to \"Open dealer portal\" when empty."
