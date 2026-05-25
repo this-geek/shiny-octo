@@ -347,17 +347,27 @@ The Shop metafield `b2b.app_proxy_path` is written automatically on install with
 
 ### 10.2 Add the product-template 404 guard snippet
 
-DECISIONS #6 requires that direct URLs to B2B-only products 404 for guests. The Theme App Embed Block alone cannot do this — only the product template can. Edit the merchant's theme:
+DECISIONS #6 requires that direct URLs to B2B-only products 404 for guests. The Theme App Embed Block alone cannot do this — only the product template can, and theme app extensions are not allowed to emit the `layout` / `redirect_to` tags this needs. So the snippet ships as merchant copy-paste, not as a bundled extension snippet:
 
 1. In Shopify admin → **Online Store → Themes → Edit code**.
-2. Open `templates/product.liquid` (or, for OS 2.0 themes, the JSON template's referenced section).
-3. Add this as the **first non-comment line** in the file (above any `<section>` tags or `{%- render %}` calls):
+2. Under **Snippets**, click *Add a new snippet*, name it `b2b-product-guard`, and paste:
+
+```liquid
+{%- comment -%}
+  DECISIONS #6: 404 when product.metafields.b2b.b2b_only is true AND
+  customer is not B2B. Include this snippet at the very top of templates/product.liquid.
+{%- endcomment -%}
+{%- if product.metafields.b2b.b2b_only and customer.b2b? != true -%}
+  {%- layout none -%}
+  {{ '404' | url_for | redirect_to }}
+{%- endif -%}
+```
+
+3. Open `templates/product.liquid` (or, for OS 2.0 themes, the JSON template's referenced section) and add this as the **first non-comment line** in the file (above any `<section>` tags or `{%- render %}` calls):
 
 ```liquid
 {% render 'b2b-product-guard' %}
 ```
-
-The snippet ships with our Theme App Extension under `snippets/b2b-product-guard.liquid`.
 
 ### 10.3 Search & Discovery collection filter recipe
 
@@ -369,7 +379,19 @@ We can't filter collection results server-side from a theme app extension. The p
 4. Set the filter to **Hide values: true** for the merchant's Online Store sales channel.
 5. Verify on a collection page: B2B-only products no longer appear in the grid for guests.
 
-As a CSS-level fallback for themes that don't apply the metafield filter consistently, include the snippet `b2b-collection-filter.liquid` once in `theme.liquid`'s `<head>`. It hides collection cards carrying `data-b2b-only="true"` when the visitor is not a B2B customer.
+As a CSS-level fallback for themes that don't apply the metafield filter consistently, paste this into `theme.liquid`'s `<head>` (or a snippet named `b2b-collection-filter` that you render from `<head>`):
+
+```liquid
+{%- assign customer_is_b2b = false -%}
+{%- if customer and customer.b2b? -%}
+  {%- assign customer_is_b2b = true -%}
+{%- endif -%}
+{%- unless customer_is_b2b -%}
+  <style>[data-b2b-only="true"] { display: none !important; }</style>
+{%- endunless -%}
+```
+
+Theme integrators wire each collection-card to set `data-b2b-only="..."` from the per-product metafield.
 
 ### 10.4 Enable the Theme App Embed Block
 

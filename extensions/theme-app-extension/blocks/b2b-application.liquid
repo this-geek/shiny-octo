@@ -77,7 +77,7 @@
     .b2b-app__autosave { color: rgba(0,0,0,0.55); font-size: 0.8em; min-height: 1em; }
   </style>
 
-  {{ 'b2b-application.js' | asset_url | script_tag }}
+  <script src="{{ 'b2b-application.js' | asset_url }}" defer></script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {%- endif -%}
 
