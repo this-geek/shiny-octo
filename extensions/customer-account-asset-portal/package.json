@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@shopify/ui-extensions": "2026.4.2",
+    "@shopify/ui-extensions": "2025.8.0",
     "@shopify/ui-extensions-react": "2026.0.0",
     "react": "^18.0.0",
     "react-reconciler": "^0.29.0"
