@@ -6,6 +6,8 @@ import { hashIdAsync, log } from '../lib/logger.js';
 import { buildAssetListResponse, buildAssetDownloadResponse } from '../lib/asset-serve.js';
 import { buildCompanyProfile } from '../lib/company-profile.js';
 import { dismissTour, hasDismissedTour } from '../lib/tour-state.js';
+import { APP_JS } from './portal-assets/app-js.js';
+import { APP_CSS } from './portal-assets/app-css.js';
 
 /**
  * Buyer-facing dealer asset portal, rendered as a Worker-hosted HTML app
@@ -33,7 +35,7 @@ const COMMON_HEADERS = {
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self'",
   "img-src 'self' data: https:",
   "connect-src 'self'",
   "frame-ancestors 'self' https://*.myshopify.com https://*.shopify.com",
@@ -114,17 +116,27 @@ function errorPage(message: string): string {
 </html>`;
 }
 
-function shellPage(boot: { shop_domain: string; company_id: string | null; tier_id: number | null }): string {
+interface BootPayload {
+  shop_domain: string;
+  company_id: string | null;
+  tier_id: number | null;
+  proxy_base: string;
+}
+
+function shellPage(boot: BootPayload): string {
   const bootJson = JSON.stringify(boot)
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026');
+  const cssHref = `${boot.proxy_base}/static/app.css`;
+  const jsSrc = `${boot.proxy_base}/static/app.js`;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dealer portal</title>
+<link rel="stylesheet" href="${escapeHtml(cssHref)}">
 </head>
 <body>
 <main id="b2b-portal-root">
@@ -132,8 +144,17 @@ function shellPage(boot: { shop_domain: string; company_id: string | null; tier_
 <p>Loading…</p>
 </main>
 <script id="b2b-portal-boot" type="application/json">${bootJson}</script>
+<script src="${escapeHtml(jsSrc)}" defer></script>
 </body>
 </html>`;
+}
+
+function deriveProxyBase(c: Context<{ Bindings: Env }>): string {
+  const pathPrefix = c.req.query('path_prefix');
+  if (pathPrefix && pathPrefix.startsWith('/')) {
+    return `${pathPrefix.replace(/\/+$/, '')}/portal`;
+  }
+  return '/apps/b2b/portal';
 }
 
 type ProxyBuyerResult =
@@ -274,6 +295,31 @@ portalRouter.get('/', async c => {
       shop_domain: r.buyer.shop_domain,
       company_id: r.buyer.shopify_company_id,
       tier_id: r.buyer.tier_id,
+      proxy_base: deriveProxyBase(c),
     }),
   );
+});
+
+portalRouter.get('/static/app.js', c => {
+  return new Response(APP_JS, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
+});
+
+portalRouter.get('/static/app.css', c => {
+  return new Response(APP_CSS, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/css; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
 });

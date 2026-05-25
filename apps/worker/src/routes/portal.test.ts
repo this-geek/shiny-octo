@@ -413,3 +413,90 @@ describe('/proxy/portal/api/*', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('/proxy/portal/static/*', () => {
+  it('serves app.js with the JS content-type', async () => {
+    const { env } = makeEnv({});
+    const app = buildApp();
+    const url = await buildSignedUrlForPath('/proxy/portal/static/app.js', {});
+    const res = await app.request(url, {}, env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toMatch(/javascript/);
+    const body = await res.text();
+    expect(body).toContain('b2b-portal-boot');
+    expect(body).toContain('proxy_base');
+  });
+
+  it('serves app.css with the CSS content-type', async () => {
+    const { env } = makeEnv({});
+    const app = buildApp();
+    const url = await buildSignedUrlForPath('/proxy/portal/static/app.css', {});
+    const res = await app.request(url, {}, env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toMatch(/text\/css/);
+    const body = await res.text();
+    expect(body).toContain('b2b-portal-root');
+  });
+
+  it('static requests still require a valid App Proxy signature', async () => {
+    const { env } = makeEnv({});
+    const app = buildApp();
+    const res = await app.request(
+      '/proxy/portal/static/app.js?shop=demo.myshopify.com&signature=deadbeef',
+      {},
+      env,
+    );
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('shell page proxy_base', () => {
+  const realFetch = globalThis.fetch;
+  beforeEach(() => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it('uses path_prefix from the signed query when building static URLs', async () => {
+    const encryptedToken = await encrypt('shpat_test', SHOP_DOMAIN, MASTER_KEY);
+    const { env } = makeEnv({
+      shop: { id: 7, shopify_domain: SHOP_DOMAIN, access_token_encrypted: encryptedToken },
+      companyForCustomer: COMPANY_ID,
+      mappedTierId: 3,
+    });
+    stubCustomerCompanyLookup(COMPANY_ID);
+
+    const app = buildApp();
+    const url = await buildSignedUrlForPath('/proxy/portal', {
+      logged_in_customer_id: CUSTOMER_ID,
+      path_prefix: '/apps/wholesale',
+    });
+    const res = await app.request(url, {}, env);
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('href="/apps/wholesale/portal/static/app.css"');
+    expect(body).toContain('src="/apps/wholesale/portal/static/app.js"');
+    expect(body).toContain('"proxy_base":"/apps/wholesale/portal"');
+  });
+
+  it('falls back to /apps/b2b/portal when path_prefix is absent', async () => {
+    const encryptedToken = await encrypt('shpat_test', SHOP_DOMAIN, MASTER_KEY);
+    const { env } = makeEnv({
+      shop: { id: 7, shopify_domain: SHOP_DOMAIN, access_token_encrypted: encryptedToken },
+      companyForCustomer: COMPANY_ID,
+      mappedTierId: 3,
+    });
+    stubCustomerCompanyLookup(COMPANY_ID);
+
+    const app = buildApp();
+    const url = await buildSignedUrlForPath('/proxy/portal', {
+      logged_in_customer_id: CUSTOMER_ID,
+    });
+    const res = await app.request(url, {}, env);
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain('"proxy_base":"/apps/b2b/portal"');
+  });
+});
