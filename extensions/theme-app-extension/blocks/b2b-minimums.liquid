@@ -44,15 +44,15 @@
       {%- if customer_is_b2b -%}
         <p class="b2b-minimums__notice" role="status">
           {%- if case_qty > 0 -%}
-            {{ 'b2b.minimums.case_qty' | t: count: case_qty | default: 'Sold in cases of ' | append: case_qty | append: '.' }}
+            {{ 'b2b.minimums.case_qty' | t: count: case_qty }}
           {%- endif -%}
           {%- if min_qty > 0 -%}
             {% if case_qty > 0 %} {% endif -%}
-            {{ 'b2b.minimums.min_qty' | t: count: min_qty | default: 'Minimum order: ' | append: min_qty | append: '.' }}
+            {{ 'b2b.minimums.min_qty' | t: count: min_qty }}
           {%- endif -%}
           {%- if max_qty > 0 -%}
             {% if case_qty > 0 or min_qty > 0 %} {% endif -%}
-            {{ 'b2b.minimums.max_qty' | t: count: max_qty | default: 'Maximum order: ' | append: max_qty | append: '.' }}
+            {{ 'b2b.minimums.max_qty' | t: count: max_qty }}
           {%- endif -%}
         </p>
       {%- endif -%}
@@ -76,7 +76,7 @@
 
 {% schema %}
 {
-  "name": "B2B Minimums & Case Quantities",
+  "name": "B2B Minimums & Case Qty",
   "target": "body",
   "settings": [
     {
