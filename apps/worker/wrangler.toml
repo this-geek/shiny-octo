@@ -64,7 +64,7 @@ ADMIN_ORIGIN = "https://b2b-companion-admin.pages.dev"
 # EMAIL_FROM is a non-secret var (it's a visible From: address). Set the
 # domain you've verified at Resend; Phase 1E emails will fail to send until
 # this is configured and the domain has working DKIM at Resend.
-# EMAIL_FROM = "B2B Companion <hello@yourdomain.com>"
+ EMAIL_FROM = "B2B Companion <hello@affiliatedclick.xyz>"
 
 # Secrets (set via: wrangler secret put SHOPIFY_API_KEY)
 # SHOPIFY_API_KEY
