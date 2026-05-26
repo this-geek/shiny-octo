@@ -1,9 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
-import { encrypt } from '../lib/crypto.js';
 import { log } from '../lib/logger.js';
-import { setShopMetafield } from '../lib/shop-metafields.js';
-import { ensureMetafieldDefinitions } from '../lib/metafield-definitions.js';
+import { runPostInstall } from '../lib/post-install.js';
 
 const SCOPES = [
   'read_customers',
@@ -74,56 +72,6 @@ async function verifyOAuthHmac(
     diff |= computed.charCodeAt(i) ^ provided.charCodeAt(i);
   }
   return diff === 0;
-}
-
-interface ShopPlanResponse {
-  data?: {
-    shop?: {
-      plan?: {
-        shopifyPlus?: boolean;
-      };
-    };
-  };
-}
-
-async function fetchShopPlan(
-  shopDomain: string,
-  token: string,
-  apiVersion: string,
-): Promise<{ shopifyPlus: boolean; shopId: string }> {
-  const url = `https://${shopDomain}/admin/api/${apiVersion}/graphql.json`;
-  const query = `{
-    shop {
-      id
-      plan {
-        shopifyPlus
-      }
-    }
-  }`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': token,
-    },
-    body: JSON.stringify({ query }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`GraphQL request failed: ${res.status}`);
-  }
-
-  const json = (await res.json()) as ShopPlanResponse;
-  const plan = json.data?.shop?.plan;
-  const shopId = (json.data as { shop?: { id?: string } })?.shop?.id ?? '';
-  // Shop GID looks like "gid://shopify/Shop/12345"
-  const numericId = shopId.split('/').pop() ?? '0';
-
-  return {
-    shopifyPlus: plan?.shopifyPlus ?? false,
-    shopId: numericId,
-  };
 }
 
 async function exchangeCodeForToken(
@@ -233,52 +181,9 @@ oauthRouter.get('/callback', async c => {
     return c.text('Token exchange failed', 500);
   }
 
-  // 4. Read shop plan info
-  let isPlus = false;
-  let shopifyShopId = '0';
-  try {
-    const plan = await fetchShopPlan(shop, token, c.env.SHOPIFY_API_VERSION);
-    isPlus = plan.shopifyPlus;
-    shopifyShopId = plan.shopId;
-  } catch (err) {
-    log('warn', 'Could not read shop plan, defaulting to non-Plus', { shop, error: String(err) });
-  }
+  // 4. Persist + run post-install setup (shared with managed-installation flow).
+  await runPostInstall(c.env, shop, token);
 
-  // 5. Encrypt access token
-  const encryptedToken = await encrypt(token, shop, c.env.MASTER_KEY);
-
-  // 6. Upsert shop row in D1
-  const now = Math.floor(Date.now() / 1000);
-  await c.env.DB.prepare(
-    `INSERT INTO shops (shopify_domain, shopify_shop_id, access_token_encrypted, is_plus, plan_id, installed_at, settings_json)
-     VALUES (?, ?, ?, ?, ?, ?, '{}')
-     ON CONFLICT (shopify_domain) DO UPDATE SET
-       shopify_shop_id = excluded.shopify_shop_id,
-       access_token_encrypted = excluded.access_token_encrypted,
-       is_plus = excluded.is_plus,
-       plan_id = excluded.plan_id,
-       uninstalled_at = NULL`,
-  )
-    .bind(shop, parseInt(shopifyShopId, 10), encryptedToken, isPlus ? 1 : 0, isPlus ? 'plus' : 'advanced', now)
-    .run();
-
-  log('info', 'Shop installed / re-installed', { shop, is_plus: isPlus });
-
-  // 7. Ensure metafield definitions exist (idempotent — TAKEN errors are swallowed).
-  try {
-    await ensureMetafieldDefinitions(shop, token, c.env.SHOPIFY_API_VERSION);
-  } catch (err) {
-    log('warn', 'metafield definitions ensure failed', { shop, error: String(err) });
-  }
-
-  // 8. Mirror is_plus + app_proxy_path to Shop metafields so Functions can read them.
-  try {
-    await setShopMetafield(shop, token, c.env.SHOPIFY_API_VERSION, 'b2b', 'is_plus', 'boolean', isPlus ? 'true' : 'false');
-    await setShopMetafield(shop, token, c.env.SHOPIFY_API_VERSION, 'b2b', 'app_proxy_path', 'single_line_text_field', 'apps/b2b');
-  } catch (err) {
-    log('warn', 'shop metafield mirror failed', { shop, error: String(err) });
-  }
-
-  // 9. Redirect to app in admin
+  // 5. Redirect to app in admin
   return c.redirect(`https://${shop}/admin/apps/${c.env.SHOPIFY_API_KEY}`);
 });

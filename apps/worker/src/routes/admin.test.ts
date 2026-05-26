@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { adminRouter } from './admin.js';
 import type { Env } from '../types.js';
+import { encrypt } from '../lib/crypto.js';
 
 const API_KEY = 'test-api-key';
 const API_SECRET = 'test-api-secret';
 const SHOP_DOMAIN = 'demo.myshopify.com';
+const MASTER_KEY = '00'.repeat(32);
 
 interface ShopRow {
   is_plus: number;
@@ -28,6 +30,10 @@ function makeEnv(initial: ShopRow): { env: Env; state: { row: ShopRow } } {
           return stmt;
         },
         async first<T>(): Promise<T | null> {
+          if (sql.includes('access_token_encrypted') && sql.includes('uninstalled_at IS NULL')) {
+            const enc = await encrypt('shpat_FAKE', SHOP_DOMAIN, MASTER_KEY);
+            return { id: 1, access_token_encrypted: enc } as unknown as T;
+          }
           if (sql.includes('SELECT settings_json')) {
             if (state.row.exists === false) return null;
             return { settings_json: state.row.settings_json ?? '{}' } as unknown as T;
@@ -72,7 +78,7 @@ function makeEnv(initial: ShopRow): { env: Env; state: { row: ShopRow } } {
     WEBHOOK_QUEUE: {} as Queue,
     SHOPIFY_API_KEY: API_KEY,
     SHOPIFY_API_SECRET: API_SECRET,
-    MASTER_KEY: '00'.repeat(32),
+    MASTER_KEY,
     RESEND_API_KEY: '',
     APP_URL: 'https://worker.example.com',
     SHOPIFY_API_VERSION: '2026-04',

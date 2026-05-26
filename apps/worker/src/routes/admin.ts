@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
 import { sessionTokenMiddleware } from '../middleware/session-token.js';
+import { ensureShopAuthMiddleware } from '../middleware/ensure-shop-auth.js';
 import { adminCors } from '../middleware/cors.js';
 import { log } from '../lib/logger.js';
 import {
@@ -19,6 +20,7 @@ export const adminRouter = new Hono<{ Bindings: Env }>();
 
 adminRouter.use('*', adminCors);
 adminRouter.use('*', sessionTokenMiddleware);
+adminRouter.use('*', ensureShopAuthMiddleware);
 
 adminRouter.route('/', adminTiersRouter);
 adminRouter.route('/', adminAssetsRouter);
