@@ -1,3 +1,19 @@
 {
-  "name": "B2B Companion storefront"
+  "name": "B2B Companion storefront",
+  "b2b": {
+    "minimums": {
+      "case_qty": {
+        "one": "Sold in cases of {{ count }}.",
+        "other": "Sold in cases of {{ count }}."
+      },
+      "min_qty": {
+        "one": "Minimum order: {{ count }}.",
+        "other": "Minimum order: {{ count }}."
+      },
+      "max_qty": {
+        "one": "Maximum order: {{ count }}.",
+        "other": "Maximum order: {{ count }}."
+      }
+    }
+  }
 }
