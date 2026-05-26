@@ -1,0 +1,17 @@
+{
+  "name": "@b2b/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pretest": "node scripts/sync-asset.mjs --check",
+    "test": "playwright test",
+    "test:update-fixtures": "node scripts/sync-asset.mjs --write",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

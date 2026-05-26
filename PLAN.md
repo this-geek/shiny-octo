@@ -45,7 +45,7 @@ downloaded an asset, and was warned at a minimum-order violation.
 - [x] **P0** Product template variant that 404s on `b2b.b2b_only == true` when `customer.b2b?` is false (per DECISIONS #6).
 - [x] **P0** Search & Discovery metafield filter recipe documented in admin onboarding.
 - [x] **P0** App Proxy `/tier-context` endpoint returns buyer tier + discount; UX-only cache in localStorage with 5-min TTL (per DECISIONS #10).
-- [ ] **P0** Acceptance tests: direct-URL guard, no FOUC, ≤500ms post-login reveal, Dawn + Horizon + Impulse + Prestige. *(Deferred: requires Playwright + theme environment; tracked separately.)*
+- [x] **P0** Acceptance tests: direct-URL guard, no FOUC, ≤500ms post-login reveal, Dawn + Horizon + Impulse + Prestige. *(Hermetic Playwright suite in `e2e/` — captured PDP fixtures per theme, `/tier-context` mocked via `page.route()`. Covers: redirect on b2b_only + non-B2B (`direct-url-guard.spec.ts`), cache-hit reveal completes before DOMContentLoaded (`no-fouc.spec.ts`), p95 cold-cache reveal < 500ms over 10 iterations with 50ms mocked network (`reveal-latency.spec.ts`), hide-rule selectors present per theme (`theme-matrix.spec.ts`). Asset lockstep via `e2e/scripts/sync-asset.mjs` mirrors the Phase 1D parity-test convention. Live-store smoke is the existing `MANUAL_STEPS.md §10.5` pre-pilot checklist.)*
 
 ### 1C — §4.4 Dealer asset portal (the wedge)
 - [x] **P0** R2 layout `shops/<shop_id>/assets/<asset_id>/<variant>` (per DECISIONS #3). *(`apps/worker/src/lib/r2-keys.ts` — key conventions + cross-tenant guard.)*
