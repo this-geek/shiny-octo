@@ -143,6 +143,7 @@ export function sessionTokenMiddleware(c: Context<{ Bindings: Env }>, next: Next
     .then(payload => {
       c.set('sessionPayload', payload);
       c.set('shopDomain', shopDomainFromPayload(payload));
+      c.set('sessionToken', token);
       return next();
     })
     .catch(() => c.text('Unauthorized', 401));
@@ -152,5 +153,6 @@ declare module 'hono' {
   interface ContextVariableMap {
     sessionPayload: SessionTokenPayload;
     shopDomain: string;
+    sessionToken: string;
   }
 }

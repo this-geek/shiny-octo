@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { adminRouter } from './admin.js';
 import type { Env } from '../types.js';
+import { encrypt } from '../lib/crypto.js';
 
 const API_KEY = 'test-api-key';
 const API_SECRET = 'test-api-secret';
 const SHOP_DOMAIN = 'demo.myshopify.com';
 const SHOP_ID = 7;
+const MASTER_KEY = '00'.repeat(32);
 
 interface FolderRow {
   id: number;
@@ -70,6 +72,11 @@ function makeEnv(): { env: Env; state: State } {
           return stmt;
         },
         async first<T>(): Promise<T | null> {
+          if (sql.includes('access_token_encrypted') && sql.includes('uninstalled_at IS NULL')) {
+            if (!state.shop_exists) return null;
+            const enc = await encrypt('shpat_FAKE', SHOP_DOMAIN, MASTER_KEY);
+            return { id: SHOP_ID, access_token_encrypted: enc } as unknown as T;
+          }
           if (sql.includes('SELECT id FROM shops')) {
             return state.shop_exists ? ({ id: SHOP_ID } as unknown as T) : null;
           }
@@ -264,7 +271,7 @@ function makeEnv(): { env: Env; state: State } {
     WEBHOOK_QUEUE: {} as Queue,
     SHOPIFY_API_KEY: API_KEY,
     SHOPIFY_API_SECRET: API_SECRET,
-    MASTER_KEY: '00'.repeat(32),
+    MASTER_KEY,
     RESEND_API_KEY: '',
     APP_URL: 'https://worker.example.com',
     SHOPIFY_API_VERSION: '2026-04',
