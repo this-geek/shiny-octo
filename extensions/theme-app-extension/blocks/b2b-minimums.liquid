@@ -1,0 +1,91 @@
+{% comment %}
+  b2b-minimums.liquid — Theme App Embed (Phase 1F).
+
+  Body-target App Embed that surfaces the case-quantity / min / max order
+  qty rules on the PDP, so B2B buyers see the constraint before they hit
+  the cart-validation Function. No-ops on non-product templates and on
+  products without any of the three b2b.* qty metafields set, so it's
+  safe to leave enabled globally.
+
+  The notice text is only rendered when the customer is logged in as B2B
+  (case / min / max are wholesale-only concepts). Defence-in-depth: the
+  cart-validation Function still rejects bad lines server-side.
+
+  Companion JS (assets/b2b-minimums.js) snaps the standard PDP quantity
+  input to the nearest valid value on `change`/`blur` as a UX nicety.
+  Pure data-* contract — no inline scripts (CSP per §9).
+{% endcomment %}
+
+{%- if template contains 'product' and product -%}
+  {%- assign case_qty = product.metafields.b2b.case_quantity | plus: 0 -%}
+  {%- assign min_qty = product.metafields.b2b.min_order_qty | plus: 0 -%}
+  {%- assign max_qty = product.metafields.b2b.max_order_qty | plus: 0 -%}
+
+  {%- assign has_rule = false -%}
+  {%- if case_qty > 0 or min_qty > 0 or max_qty > 0 -%}
+    {%- assign has_rule = true -%}
+  {%- endif -%}
+
+  {%- assign customer_is_b2b = false -%}
+  {%- if customer and customer.b2b? -%}
+    {%- assign customer_is_b2b = true -%}
+  {%- endif -%}
+
+  {%- if has_rule -%}
+    <div
+      data-b2b-minimums-block
+      data-product-id="{{ product.id }}"
+      data-case-qty="{{ case_qty }}"
+      data-min-qty="{{ min_qty }}"
+      data-max-qty="{{ max_qty }}"
+      data-customer-is-b2b="{% if customer_is_b2b %}true{% else %}false{% endif %}"
+      data-snap-qty="{% if block.settings.snap_qty %}true{% else %}false{% endif %}"
+    >
+      {%- if customer_is_b2b -%}
+        <p class="b2b-minimums__notice" role="status">
+          {%- if case_qty > 0 -%}
+            {{ 'b2b.minimums.case_qty' | t: count: case_qty | default: 'Sold in cases of ' | append: case_qty | append: '.' }}
+          {%- endif -%}
+          {%- if min_qty > 0 -%}
+            {% if case_qty > 0 %} {% endif -%}
+            {{ 'b2b.minimums.min_qty' | t: count: min_qty | default: 'Minimum order: ' | append: min_qty | append: '.' }}
+          {%- endif -%}
+          {%- if max_qty > 0 -%}
+            {% if case_qty > 0 or min_qty > 0 %} {% endif -%}
+            {{ 'b2b.minimums.max_qty' | t: count: max_qty | default: 'Maximum order: ' | append: max_qty | append: '.' }}
+          {%- endif -%}
+        </p>
+      {%- endif -%}
+    </div>
+
+    {%- if customer_is_b2b -%}
+      <style>
+        .b2b-minimums__notice {
+          margin: 0.5rem 0;
+          padding: 0.5rem 0.75rem;
+          background: rgba(0, 0, 0, 0.04);
+          border-left: 3px solid currentColor;
+          font-size: 0.9rem;
+          line-height: 1.4;
+        }
+      </style>
+      <script src="{{ 'b2b-minimums.js' | asset_url }}" defer></script>
+    {%- endif -%}
+  {%- endif -%}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "B2B Minimums & Case Quantities",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "snap_qty",
+      "label": "Snap the PDP quantity input to a valid value",
+      "info": "When on, the buyer's typed quantity is rounded up to the next case multiple (and clamped to min/max) on blur. The cart-validation Function still enforces the rules server-side regardless.",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
