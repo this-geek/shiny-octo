@@ -6,6 +6,7 @@ import { hashIdAsync, log } from '../lib/logger.js';
 import { resolveBuyerByCustomerId } from '../lib/buyer-context.js';
 import { buildAssetListResponse, buildAssetDownloadResponse } from '../lib/asset-serve.js';
 import { appProxyApplicationsRouter } from './app-proxy-applications.js';
+import { portalRouter } from './portal.js';
 
 export const appProxyRouter = new Hono<{ Bindings: Env }>();
 
@@ -13,6 +14,11 @@ appProxyRouter.use('*', appProxyMiddleware);
 
 // Phase 1E — wholesale application form. Routes start with /application/*.
 appProxyRouter.route('/', appProxyApplicationsRouter);
+
+// Buyer-facing dealer asset portal (Worker-rendered HTML, reached via App
+// Proxy at <shop>/apps/b2b/portal). Replaces the customer-account.page.render
+// UI extension path.
+appProxyRouter.route('/portal', portalRouter);
 
 interface CustomerCompanyResp {
   data?: {
