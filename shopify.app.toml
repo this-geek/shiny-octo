@@ -50,13 +50,7 @@ uri = "https://b2b-companion.selling.workers.dev/webhooks"
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_companies,write_companies,read_customers,write_customers,read_files,write_files,read_locales,read_markets,read_orders,write_orders,read_payment_terms,write_payment_terms,read_products,write_products,read_shipping,write_shipping,read_themes,write_themes"
 optional_scopes = [ ]
-# Managed installation (use_legacy_install_flow = false) skips the
-# /auth/callback round-trip, so the worker never gets a chance to exchange
-# the OAuth code for an access token and the `shops` row is never created.
-# Until token exchange is implemented (see follow-up issue), opt back into
-# the legacy OAuth flow so install round-trips through /auth/callback and
-# downstream admin routes can resolve a shop's access token.
-use_legacy_install_flow = true
+use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [ "https://b2b-companion.selling.workers.dev/auth/callback" ]
