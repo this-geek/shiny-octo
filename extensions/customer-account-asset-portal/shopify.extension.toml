@@ -3,6 +3,7 @@ api_version = "2026-04"
 [[extensions]]
 name = "B2B Dealer Portal Link"
 handle = "b2b-portal-link"
+uid = "3429a395-1796-6492-4a97-274f2b32dd4e92835071"
 type = "ui_extension"
 
   # Single-target block — renders a "Open dealer portal" card on the

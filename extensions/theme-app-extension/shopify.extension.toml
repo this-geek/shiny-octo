@@ -3,4 +3,5 @@ api_version = "2026-04"
 [[extensions]]
 name = "B2B Companion storefront"
 handle = "b2b-companion-theme"
+uid = "d76e5b17-5acf-a89b-4d15-29552420a5e2d8f15b5f"
 type = "theme"
