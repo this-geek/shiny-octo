@@ -12,11 +12,19 @@ import {
   sendApplicationEmailHandler,
   type SendApplicationEmailPayload,
 } from '../handlers/send-application-email.js';
+import { gdprDataRequestHandler } from '../handlers/gdpr-data-request.js';
+import { gdprCustomerRedactHandler } from '../handlers/gdpr-customer-redact.js';
+import { gdprShopRedactHandler } from '../handlers/gdpr-shop-redact.js';
+import {
+  sendGdprExportHandler,
+  type SendGdprExportPayload,
+} from '../handlers/send-gdpr-export.js';
 import { log } from '../lib/logger.js';
 
 export const INTERNAL_PUBLISH_TIERS_CONFIG = '_internal/publish-tiers-config';
 export const INTERNAL_MIRROR_COMPANY_TIER = '_internal/mirror-company-tier';
 export const INTERNAL_SEND_APPLICATION_EMAIL = '_internal/send-application-email';
+export const INTERNAL_SEND_GDPR_EXPORT = '_internal/send-gdpr-export';
 
 interface WebhookQueueMessage {
   id: string;
@@ -109,7 +117,7 @@ export async function handleWebhookQueue(
     log('info', 'Processing webhook from queue', { topic, shop: shop_domain, id });
 
     try {
-      await dispatchWebhook(topic, shop_domain, body, env);
+      await dispatchWebhook(topic, shop_domain, body, env, id);
 
       // Update webhook_log status to 'processed'
       const shopRow = await env.DB.prepare(
@@ -145,10 +153,11 @@ async function dispatchWebhook(
   shopDomain: string,
   body: string,
   env: Env,
+  webhookId: string = '',
 ): Promise<void> {
   switch (topic) {
     case 'app/uninstalled':
-      await appUninstalledHandler(shopDomain, env);
+      await appUninstalledHandler(webhookId, shopDomain, env);
       break;
 
     case 'shop/update':
@@ -175,23 +184,27 @@ async function dispatchWebhook(
       );
       break;
 
-    // GDPR mandatory endpoints — Phase 1 will implement full PII purge
+    case INTERNAL_SEND_GDPR_EXPORT:
+      await sendGdprExportHandler(
+        shopDomain,
+        JSON.parse(body) as SendGdprExportPayload,
+        env,
+      );
+      break;
+
+    // GDPR mandatory endpoints. The handler only records the request; the
+    // daily cron sweep (`handlers/gdpr-sweep.ts`) performs the actual
+    // export/purge after the configured stand-down window.
     case 'customers/data_request':
-      log('info', 'GDPR data request received — Phase 1 implementation pending', {
-        shop: shopDomain,
-      });
+      await gdprDataRequestHandler(webhookId, shopDomain, body, env);
       break;
 
     case 'customers/redact':
-      log('info', 'GDPR customer redact received — Phase 1 implementation pending', {
-        shop: shopDomain,
-      });
+      await gdprCustomerRedactHandler(webhookId, shopDomain, body, env);
       break;
 
     case 'shop/redact':
-      log('info', 'GDPR shop redact received — Phase 1 implementation pending', {
-        shop: shopDomain,
-      });
+      await gdprShopRedactHandler(webhookId, shopDomain, body, env);
       break;
 
     // Company events — Phase 1 will sync to D1 hot cache

@@ -3,6 +3,7 @@ import {
   INTERNAL_PUBLISH_TIERS_CONFIG,
   INTERNAL_MIRROR_COMPANY_TIER,
   INTERNAL_SEND_APPLICATION_EMAIL,
+  INTERNAL_SEND_GDPR_EXPORT,
 } from '../routes/webhooks.js';
 
 export type ApplicationEmailKind =
@@ -69,6 +70,25 @@ export async function enqueueApplicationEmail(
  * Enqueue a Company-metafield write for the given company. Use tier_id=null
  * when a mapping is being removed (consumer writes 0 as the "no tier" sentinel).
  */
+/**
+ * Enqueue delivery of a `customers/data_request` export bundle. The handler
+ * loads the row, runs the export, and emails the JSON to the shop owner.
+ * Used by the GDPR sweep (`handlers/gdpr-sweep.ts`).
+ */
+export async function enqueueGdprDataExport(
+  env: Env,
+  shopDomain: string,
+  gdprRequestId: string,
+): Promise<void> {
+  const msg: InternalJobMessage = {
+    id: newId('gdpr-export'),
+    topic: INTERNAL_SEND_GDPR_EXPORT,
+    shop_domain: shopDomain,
+    body: JSON.stringify({ gdpr_request_id: gdprRequestId }),
+  };
+  await env.WEBHOOK_QUEUE.send(msg);
+}
+
 export async function enqueueCompanyTierMirror(
   env: Env,
   shopDomain: string,
