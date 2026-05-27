@@ -92,7 +92,7 @@ export async function loader({ request, context }: LoaderFunctionArgs): Promise<
 }
 
 export default function Index() {
-  const { status, workerBase, idToken, onboarding } = useLoaderData<typeof loader>() as LoaderData;
+  const { status, idToken, onboarding } = useLoaderData<typeof loader>() as LoaderData;
   const dismissFetcher = useFetcher();
 
   const dismissed =
@@ -104,7 +104,7 @@ export default function Index() {
 
   const onDismiss = (): void => {
     dismissFetcher.submit(
-      { workerBase, idToken: idToken ?? '' },
+      { idToken: idToken ?? '' },
       { method: 'post', action: '/dismiss-plus-banner' },
     );
   };

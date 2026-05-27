@@ -1,12 +1,17 @@
 import { json, type ActionFunctionArgs } from '@remix-run/cloudflare';
 
-export async function action({ request }: ActionFunctionArgs): Promise<Response> {
+export async function action({ request, context }: ActionFunctionArgs): Promise<Response> {
   const form = await request.formData();
-  const workerBase = form.get('workerBase')?.toString() ?? '';
   const idToken = form.get('idToken')?.toString() ?? '';
 
-  if (!workerBase || !idToken) {
-    return json({ ok: false, error: 'missing workerBase or idToken' }, { status: 400 });
+  const env = (context as { cloudflare?: { env?: Record<string, string> } }).cloudflare?.env ?? {};
+  const workerBase = env.WORKER_URL ?? env.APP_URL ?? '';
+
+  if (!workerBase) {
+    return json({ ok: false, error: 'WORKER_URL not configured' }, { status: 500 });
+  }
+  if (!idToken) {
+    return json({ ok: false, error: 'missing idToken' }, { status: 400 });
   }
 
   const res = await fetch(`${workerBase}/admin/plus-banner/dismiss`, {
