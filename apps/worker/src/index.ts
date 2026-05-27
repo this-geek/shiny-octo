@@ -5,6 +5,7 @@ import { webhooksRouter, handleWebhookQueue } from './routes/webhooks.js';
 import { adminRouter } from './routes/admin.js';
 import { appProxyRouter } from './routes/app-proxy.js';
 import { runActivationNudgesScan } from './handlers/activation-nudges.js';
+import { runGdprSweep } from './handlers/gdpr-sweep.js';
 import { log } from './lib/logger.js';
 
 interface WebhookQueueMessage {
@@ -30,12 +31,20 @@ export default {
   },
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
-      runActivationNudgesScan(env).catch(err => {
-        log('error', 'scheduled: activation-nudges scan failed', {
-          cron: event.cron,
-          error: String(err),
-        });
-      }),
+      Promise.allSettled([
+        runActivationNudgesScan(env).catch(err => {
+          log('error', 'scheduled: activation-nudges scan failed', {
+            cron: event.cron,
+            error: String(err),
+          });
+        }),
+        runGdprSweep(env).catch(err => {
+          log('error', 'scheduled: gdpr sweep failed', {
+            cron: event.cron,
+            error: String(err),
+          });
+        }),
+      ]),
     );
   },
 };
