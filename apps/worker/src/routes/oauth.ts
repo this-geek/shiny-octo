@@ -24,16 +24,51 @@ const SCOPES = [
   'write_shipping',
 ].join(',');
 
-const SHOP_DOMAIN_RE = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
+// Subdomain: 3-60 chars, lowercase alphanumeric + hyphens, must start alphanumeric.
+// Full domain therefore caps at 60 + ".myshopify.com" (15) = 75 chars.
+const SHOP_DOMAIN_RE = /^[a-z0-9][a-z0-9\-]{2,59}\.myshopify\.com$/;
+const SHOP_DOMAIN_MAX_LEN = 75;
 
-function isValidShopDomain(shop: string): boolean {
-  return SHOP_DOMAIN_RE.test(shop);
+const STATE_COOKIE = 'oauth_state';
+const STATE_COOKIE_TTL_S = 600;
+
+function normalizeShopDomain(raw: string | null | undefined): string | null {
+  if (!raw || raw.length > SHOP_DOMAIN_MAX_LEN) return null;
+  const lower = raw.toLowerCase();
+  return SHOP_DOMAIN_RE.test(lower) ? lower : null;
 }
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function getCookie(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(/;\s*/)) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq) === name) return part.slice(eq + 1);
+  }
+  return null;
+}
+
+function setStateCookie(value: string): string {
+  return `${STATE_COOKIE}=${value}; Path=/; Max-Age=${STATE_COOKIE_TTL_S}; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function clearStateCookie(): string {
+  return `${STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 }
 
 /**
@@ -64,14 +99,7 @@ async function verifyOAuthHmac(
   const computed = bytesToHex(new Uint8Array(sig));
 
   const provided = params.get('hmac') ?? '';
-
-  // Timing-safe comparison
-  if (computed.length !== provided.length) return false;
-  let diff = 0;
-  for (let i = 0; i < computed.length; i++) {
-    diff |= computed.charCodeAt(i) ^ provided.charCodeAt(i);
-  }
-  return diff === 0;
+  return timingSafeEqual(computed, provided);
 }
 
 async function exchangeCodeForToken(
@@ -106,18 +134,27 @@ export const oauthRouter = new Hono<{ Bindings: Env }>();
  * Initiates the Shopify OAuth flow.
  */
 oauthRouter.get('/', async c => {
-  const shop = c.req.query('shop');
+  const shop = normalizeShopDomain(c.req.query('shop'));
 
-  if (!shop || !isValidShopDomain(shop)) {
+  if (!shop) {
     return c.text('Invalid shop parameter', 400);
   }
 
-  // Generate a cryptographically random nonce (16 bytes → 32 hex chars)
+  // Cryptographically random nonce (16 bytes → 32 hex chars).
   const nonceBytes = crypto.getRandomValues(new Uint8Array(16));
   const nonce = bytesToHex(nonceBytes);
 
-  // Store nonce in KV_SESSIONS with 10-minute TTL
-  await c.env.KV_SESSIONS.put(`oauth:nonce:${shop}`, nonce, { expirationTtl: 600 });
+  // Key by the nonce so concurrent /auth calls for the same shop cannot
+  // overwrite each other's pending state. The value records the shop the
+  // nonce was issued for, so the callback can verify the shop matches.
+  await c.env.KV_SESSIONS.put(`oauth:nonce:${nonce}`, shop, {
+    expirationTtl: STATE_COOKIE_TTL_S,
+  });
+
+  // Bind the state to the initiating browser via a signed/cookie pair.
+  // Without this, any actor that can trigger /auth?shop=victim produces a
+  // valid nonce the victim's browser would then complete (login-CSRF).
+  c.header('Set-Cookie', setStateCookie(nonce));
 
   const redirectUri = `${c.env.APP_URL}/auth/callback`;
   const authUrl = new URL(`https://${shop}/admin/oauth/authorize`);
@@ -137,37 +174,60 @@ oauthRouter.get('/', async c => {
  */
 oauthRouter.get('/callback', async c => {
   const params = new URLSearchParams(c.req.url.split('?')[1] ?? '');
-  const shop = params.get('shop');
+  const rawShop = params.get('shop');
   const code = params.get('code');
   const state = params.get('state');
   const hmac = params.get('hmac');
 
-  if (!shop || !code || !state || !hmac) {
+  if (!rawShop || !code || !state || !hmac) {
     return c.text('Missing required parameters', 400);
   }
 
-  if (!isValidShopDomain(shop)) {
+  const shop = normalizeShopDomain(rawShop);
+  if (!shop) {
     return c.text('Invalid shop domain', 400);
   }
 
-  // 1. Verify HMAC of all query params
+  // 1. Verify HMAC of all query params.
   const hmacValid = await verifyOAuthHmac(params, c.env.SHOPIFY_API_SECRET);
   if (!hmacValid) {
     log('warn', 'OAuth callback HMAC verification failed', { shop });
     return c.text('Unauthorized', 401);
   }
 
-  // 2. Verify nonce (state) from KV
-  const storedNonce = await c.env.KV_SESSIONS.get(`oauth:nonce:${shop}`);
-  if (!storedNonce || storedNonce !== state) {
-    log('warn', 'OAuth callback nonce mismatch', { shop });
+  // 2. Verify the state cookie matches the state query param (CSRF binding).
+  const cookieState = getCookie(c.req.header('cookie'), STATE_COOKIE);
+  if (!cookieState || !timingSafeEqual(cookieState, state)) {
+    log('warn', 'OAuth callback state cookie missing or mismatched', { shop });
+    c.header('Set-Cookie', clearStateCookie());
     return c.text('Invalid state parameter', 401);
   }
 
-  // Delete the nonce — single use
-  await c.env.KV_SESSIONS.delete(`oauth:nonce:${shop}`);
+  // 3. Verify nonce exists in KV (single-use; also proves /auth was the origin).
+  const storedShop = await c.env.KV_SESSIONS.get(`oauth:nonce:${state}`);
+  if (!storedShop) {
+    log('warn', 'OAuth callback nonce missing or already consumed', { shop });
+    c.header('Set-Cookie', clearStateCookie());
+    return c.text('Invalid state parameter', 401);
+  }
 
-  // 3. Exchange code for access token
+  // 4. The nonce's recorded shop must match the callback's shop, so an
+  // attacker can't replay a nonce issued for one shop against another.
+  if (!timingSafeEqual(storedShop, shop)) {
+    log('warn', 'OAuth callback shop does not match stored nonce shop', {
+      shop,
+      storedShop,
+    });
+    // Do NOT consume the KV entry: the legitimate browser should still be
+    // able to complete its own callback.
+    return c.text('Invalid state parameter', 401);
+  }
+
+  // Consume the nonce + clear the cookie — single use, no replay.
+  await c.env.KV_SESSIONS.delete(`oauth:nonce:${state}`);
+  c.header('Set-Cookie', clearStateCookie());
+
+  // 5. Exchange code for access token.
   let token: string;
   try {
     token = await exchangeCodeForToken(
@@ -181,9 +241,9 @@ oauthRouter.get('/callback', async c => {
     return c.text('Token exchange failed', 500);
   }
 
-  // 4. Persist + run post-install setup (shared with managed-installation flow).
+  // 6. Persist + run post-install setup (shared with managed-installation flow).
   await runPostInstall(c.env, shop, token);
 
-  // 5. Redirect to app in admin
+  // 7. Redirect to app in admin.
   return c.redirect(`https://${shop}/admin/apps/${c.env.SHOPIFY_API_KEY}`);
 });
