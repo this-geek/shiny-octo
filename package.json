@@ -7,6 +7,7 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "pnpm --filter @b2b/e2e test",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . --ext .ts,.tsx"
   },

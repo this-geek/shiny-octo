@@ -3,3 +3,4 @@ packages:
   - 'packages/*'
   - 'extensions/*'
   - 'extensions/functions/*'
+  - 'e2e'

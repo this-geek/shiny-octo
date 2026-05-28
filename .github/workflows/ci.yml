@@ -23,8 +23,27 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r test --reporter=verbose
-      - run: pnpm -r test --coverage
+      - run: pnpm -r --filter "!@b2b/e2e" test --reporter=verbose
+      - run: pnpm -r --filter "!@b2b/e2e" test --coverage
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('./e2e/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - run: pnpm --filter @b2b/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @b2b/e2e test
 
   secret-scan:
     runs-on: ubuntu-latest

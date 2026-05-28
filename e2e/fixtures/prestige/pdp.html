@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sample Product — Prestige</title>
+  </head>
+  <body class="template-product">
+    <main>
+      <div class="ProductMeta">
+        <h1 class="ProductMeta__Title">Sample Product</h1>
+        <div class="ProductMeta__PriceList product__price">
+          <span class="ProductMeta__Price Price price">$49.99</span>
+        </div>
+        <form class="ProductForm product-form" action="/cart/add" method="post">
+          <input type="hidden" name="id" value="67890" />
+          <div class="ProductForm__Actions product-form__buttons">
+            <button type="submit" name="add" class="ProductForm__AddToCart">Add to cart</button>
+          </div>
+        </form>
+
+        <div
+          data-b2b-price-block
+          data-product-id="12345"
+          data-variant-id="67890"
+          data-base-price-cents="4999"
+          data-b2b-only="false"
+          data-customer-is-b2b="false"
+          data-app-proxy-path="apps/b2b"
+          data-show-savings-badge="true"
+          data-price-display="alongside"
+        ></div>
+      </div>
+    </main>
+    <script src="../b2b-price.js" defer></script>
+  </body>
+</html>

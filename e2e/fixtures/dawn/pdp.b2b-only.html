@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>B2B-only Product — Dawn</title>
+    <style>
+      .product-form, .product__price, .price, .product-form__buttons { display: none !important; }
+    </style>
+  </head>
+  <body class="template-product">
+    <main>
+      <section class="product">
+        <h1 class="product__title">B2B-only Product</h1>
+        <div class="product__price">
+          <span class="price">
+            <span class="price-item price-item--regular">$49.99</span>
+          </span>
+        </div>
+        <form class="product-form" action="/cart/add" method="post">
+          <input type="hidden" name="id" value="67890" />
+          <div class="product-form__buttons">
+            <button type="submit" name="add" class="product-form__submit">Add to cart</button>
+          </div>
+        </form>
+
+        <div
+          data-b2b-price-block
+          data-product-id="12345"
+          data-variant-id="67890"
+          data-base-price-cents="4999"
+          data-b2b-only="true"
+          data-customer-is-b2b="false"
+          data-app-proxy-path="apps/b2b"
+          data-show-savings-badge="true"
+          data-price-display="alongside"
+        ></div>
+      </section>
+    </main>
+    <script src="../b2b-price.js" defer></script>
+  </body>
+</html>
