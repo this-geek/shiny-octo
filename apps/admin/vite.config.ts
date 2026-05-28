@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [
     remix({
+      ignoredRouteFiles: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
       serverBuildFile: 'index.js',
       serverModuleFormat: 'esm',
       future: {
