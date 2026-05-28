@@ -121,9 +121,9 @@ State persists in `shops.settings_json.onboarding` (lib/onboarding-store.ts). St
 **Exit criteria:** all GDPR endpoints pass Shopify's automated checks;
 Lighthouse Performance ≥ 80 on buyer pages; App Bridge init < 100ms.
 
-- [ ] **P2** `customers/data_request` handler returns the buyer's data within 30 days.
-- [ ] **P2** `customers/redact` purges D1 rows + R2 documents tied to the customer.
-- [ ] **P2** `shop/redact` purges everything after 48h grace.
+- [x] **P2** `customers/data_request` handler returns the buyer's data within 30 days. *(Stand-down queue in `migrations/0005_phase2_gdpr_requests.sql`; receive handler `handlers/gdpr-data-request.ts` enqueues with a 1h `due_at`; the daily cron `runGdprSweep` (`handlers/gdpr-sweep.ts`) calls `exportCustomerData` (`lib/gdpr-purge.ts`) and hands off to the existing Resend pipeline via `_internal/send-gdpr-export` (`handlers/send-gdpr-export.ts`). Owner email pulled from `shops.settings_json.gdpr.contactEmail`.)*
+- [x] **P2** `customers/redact` purges D1 rows + R2 documents tied to the customer. *(Receive handler `handlers/gdpr-customer-redact.ts` enqueues with a 7-day stand-down `due_at`; sweep calls `redactCustomer` (`lib/gdpr-purge.ts`) which hard-deletes `applications` + `application_nudges` + `asset_downloads` rows, deletes the R2 prefix `shops/<shop_id>/applications/<application_id>/`, and drops the KV `tier:<shop_id>:<customer_hash>` entry. Cross-tenant safety covered by `lib/gdpr-purge.test.ts`.)*
+- [x] **P2** `shop/redact` purges everything after the 7-day stand-down. *(Receive handler `handlers/gdpr-shop-redact.ts`; sweep calls `redactShop` which hard-deletes every PII-bearing table scoped by `shop_id`, the R2 prefix `shops/<shop_id>/`, and every KV `tier:<shop_id>:` entry. The deferred uninstall purge in `handlers/app-uninstalled.ts` enqueues the same operation as `app_uninstall_purge` due 30 days after `app/uninstalled`. Admin UI at `apps/admin/app/routes/gdpr.tsx` exposes Cancel + Process Now during the stand-down via `routes/admin-gdpr.ts`.)*
 - [ ] **P2** Per-shop rate limiter via KV (100 req/min admin, 10 req/min/IP public).
 - [ ] **P2** CSP headers on every storefront-rendered page; no inline scripts.
 - [ ] **P2** Audit-log table + writes for approvals, tier changes, asset visibility changes.
