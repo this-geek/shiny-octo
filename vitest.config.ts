@@ -5,6 +5,7 @@ export default defineConfig({
     include: [
       'packages/*/src/**/*.test.ts',
       'apps/*/src/**/*.test.ts',
+      'apps/admin/app/**/*.test.ts',
     ],
     environment: 'node',
     globals: false,

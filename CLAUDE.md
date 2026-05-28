@@ -41,6 +41,12 @@ ambiguous detail, PLAN sequences the work.
 - Tokens, application form data, and PII are AES-GCM encrypted at rest with
   per-shop HKDF-derived keys.
 - No PII in logs. Hash customer IDs.
+- Server-side `fetch` targets — including the Worker base URL — must come
+  from `context.cloudflare.env` (or equivalent server-only config), never
+  from request input (form fields, query string, JSON body, headers). The
+  only request-sourced values that may reach an outbound `fetch` are path
+  segments and bearer/session tokens, and only when the origin/host is
+  fixed server-side. See issue #30.
 - Pricing logic lives in `packages/shared` and is compiled for both the
   Function and the storefront block so they cannot drift.
 - On Shopify Plus, the tier-discount Function is disabled; the admin shows a

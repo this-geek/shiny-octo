@@ -28,7 +28,6 @@ interface OnboardingSummary {
 
 interface LoaderData {
   status: ShopStatus | null;
-  workerBase: string;
   idToken: string | null;
   onboarding: OnboardingSummary | null;
   error?: string;
@@ -42,7 +41,7 @@ export async function loader({ request, context }: LoaderFunctionArgs): Promise<
   const workerBase = env.WORKER_URL ?? env.APP_URL ?? '';
 
   if (!idToken || !workerBase) {
-    return json<LoaderData>({ status: null, workerBase, idToken, onboarding: null, error: 'missing id_token' });
+    return json<LoaderData>({ status: null, idToken, onboarding: null, error: 'missing id_token' });
   }
 
   try {
@@ -57,7 +56,6 @@ export async function loader({ request, context }: LoaderFunctionArgs): Promise<
     if (!statusRes.ok) {
       return json<LoaderData>({
         status: null,
-        workerBase,
         idToken,
         onboarding: null,
         error: `status ${statusRes.status}`,
@@ -85,14 +83,14 @@ export async function loader({ request, context }: LoaderFunctionArgs): Promise<
       };
     }
 
-    return json<LoaderData>({ status, workerBase, idToken, onboarding });
+    return json<LoaderData>({ status, idToken, onboarding });
   } catch (err) {
-    return json<LoaderData>({ status: null, workerBase, idToken, onboarding: null, error: String(err) });
+    return json<LoaderData>({ status: null, idToken, onboarding: null, error: String(err) });
   }
 }
 
 export default function Index() {
-  const { status, workerBase, idToken, onboarding } = useLoaderData<typeof loader>() as LoaderData;
+  const { status, idToken, onboarding } = useLoaderData<typeof loader>() as LoaderData;
   const dismissFetcher = useFetcher();
 
   const dismissed =
@@ -104,7 +102,7 @@ export default function Index() {
 
   const onDismiss = (): void => {
     dismissFetcher.submit(
-      { workerBase, idToken: idToken ?? '' },
+      { idToken: idToken ?? '' },
       { method: 'post', action: '/dismiss-plus-banner' },
     );
   };
