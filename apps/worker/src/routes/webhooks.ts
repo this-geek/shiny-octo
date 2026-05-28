@@ -33,6 +33,29 @@ interface WebhookQueueMessage {
   body: string;
 }
 
+/**
+ * Pull a shop domain out of a webhook JSON body if one is present.
+ * Shopify shop/app webhooks carry `myshopify_domain`; GDPR webhooks carry
+ * `shop_domain`. Returns null when the body is unparseable or has no such
+ * field — those topics are dispatched by header alone.
+ */
+function extractBodyShopDomain(bodyText: string): string | null {
+  if (!bodyText) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const obj = parsed as Record<string, unknown>;
+  const myshopify = obj.myshopify_domain;
+  if (typeof myshopify === 'string' && myshopify.length > 0) return myshopify;
+  const shop_domain = obj.shop_domain;
+  if (typeof shop_domain === 'string' && shop_domain.length > 0) return shop_domain;
+  return null;
+}
+
 export const webhooksRouter = new Hono<{ Bindings: Env }>();
 
 // Apply HMAC verification middleware to all webhook routes
@@ -53,6 +76,13 @@ webhooksRouter.post('/', async c => {
     return c.text('Bad Request', 400);
   }
 
+  // Internal queue topics MUST NOT be accepted from the public endpoint —
+  // only same-process code (lib/internal-jobs.ts) is allowed to enqueue them.
+  if (topic.startsWith('_internal/')) {
+    log('warn', 'Refusing _internal topic on public webhook endpoint', { topic, shop: shopDomain });
+    return c.text('Forbidden', 403);
+  }
+
   const idempotencyKey = `webhook:${webhookId}`;
 
   // Check for duplicate delivery
@@ -64,6 +94,21 @@ webhooksRouter.post('/', async c => {
 
   // Read raw body as text (HMAC was already verified against the raw bytes)
   const bodyText = await c.req.text();
+
+  // Shopify's HMAC only covers the body, not the X-Shopify-Shop-Domain header.
+  // If the body carries an unambiguous shop identifier, require it to match
+  // the header — otherwise a captured (body, hmac) pair could be replayed with
+  // a swapped header to drive state-mutating handlers (e.g. app/uninstalled)
+  // against a different installed shop.
+  const bodyShop = extractBodyShopDomain(bodyText);
+  if (bodyShop && bodyShop.toLowerCase() !== shopDomain.toLowerCase()) {
+    log('warn', 'Webhook body shop does not match X-Shopify-Shop-Domain header', {
+      topic,
+      header_shop: shopDomain,
+      body_shop: bodyShop,
+    });
+    return c.text('Unauthorized', 401);
+  }
 
   // Look up shop_id from D1 for logging
   const shopRow = await c.env.DB.prepare(
