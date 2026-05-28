@@ -220,8 +220,14 @@ Edit `.env` with your Shopify app credentials for local development. (`.env` is 
 
 ### 5.3 Run the D1 migration locally
 
+
 ```bash
-wrangler d1 execute b2b-companion --local --file=migrations/0001_init.sql
+# Local
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0004_phase1j_nudges.sql --local
+
+# Remote
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0004_phase1j_nudges.sql --remote
+
 ```
 
 ### 5.4 Start local development

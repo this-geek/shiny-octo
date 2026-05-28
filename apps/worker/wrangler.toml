@@ -23,6 +23,7 @@ head_sampling_rate = 1
 binding = "DB"
 database_name = "b2b-companion"
 database_id = "f707deef-4409-486d-b113-e9a6fd0d4c34"
+migrations_dir = "../../migrations"
 
 [[kv_namespaces]]
 binding = "KV_SESSIONS"
