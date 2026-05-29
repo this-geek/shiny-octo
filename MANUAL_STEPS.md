@@ -416,6 +416,54 @@ Theme integrators wire each collection-card to set `data-b2b-only="..."` from th
 - [ ] Collection pages do not surface B2B-only product cards to guests.
 - [ ] Search & Discovery search results do not surface B2B-only products to guests.
 
+### 10.6 Theme selector preset (B2B Tier Price block)
+
+Themes name their price container and product form differently. The B2B
+Tier Price embed needs to know which selectors to target so it can:
+
+1. Hide the price + add-to-cart on `b2b_only` products for non-B2B visitors
+   (the server-side `<style>` rule in the Liquid block).
+2. Inject the discounted tier price into the right element for approved
+   B2B buyers.
+
+The block exposes a **Theme selector preset** setting with four options:
+
+| Preset | Price selector | Form selector | When to use |
+|---|---|---|---|
+| **Auto (Dawn + Horizon)** | `product-price, .product__price, .price` | `product-form, .product-form, .product-form__buttons` | Default. Works on Dawn, Horizon, and most themes derived from them. |
+| **Dawn (and Dawn-derived)** | `.product__price, .price` | `.product-form, .product-form__buttons` | Pick this on Dawn / Sense / Crave / Refresh / Studio / Taste / Trade / Colorblock if Auto matches too eagerly. |
+| **Horizon** | `product-price` | `product-form` | Pick this on Horizon (custom elements) for the tightest match. |
+| **Custom selectors** | (you provide) | (you provide) | For any other theme. Paste CSS selectors into the two text fields. |
+
+**If the selector matches no element on the page, the block logs a
+`[b2b-price]` warning in the browser console and does nothing.** It does
+not fall back to a default — silent rendering into the wrong place is what
+this setting exists to prevent.
+
+#### Finding the right selectors for a custom theme
+
+1. Open a product page on the storefront.
+2. Right-click the **displayed price** → **Inspect**.
+3. In the Elements panel, walk up the DOM tree to find the smallest
+   container that wraps **only** the price (and its `regular`/`sale`
+   variants if the theme has them). Note its tag, classes, or `data-*`
+   attributes. Example targets:
+   - `<product-price>` (custom element) → use `product-price`.
+   - `<div class="price-block">` → use `.price-block`.
+   - `<span data-product-price>` → use `[data-product-price]`.
+4. Right-click the **add-to-cart button** → **Inspect**. Walk up to the
+   wrapping `<form>` or custom element that contains both the quantity
+   input and the buy button.
+5. In the block settings, set **Theme selector preset** to **Custom
+   selectors** and paste each value into the matching text field.
+6. Save the theme and reload the product page. Open DevTools → Console
+   and confirm there is no `[b2b-price]` warning. If there is, the
+   selector matched nothing; re-check the spelling.
+
+A future public-facing support site will host per-theme recipes
+(screenshot + ready-to-paste selectors). Until then, contributions to
+this table are welcome via PR.
+
 ---
 
 ## 11. Deploying the Embedded Admin (Cloudflare Pages)

@@ -49,17 +49,50 @@
       });
   }
 
-  function formatPriceCents(cents) {
-    var dollars = cents / 100;
-    return dollars.toFixed(2);
+  function buildTierMarkup(basePriceCents, discountedDollars, showSavingsBadge) {
+    var baseDollars = basePriceCents / 100;
+    var savings = baseDollars - discountedDollars;
+    var html = '<span class="b2b-tier-price" data-b2b-tier-price>$' + discountedDollars.toFixed(2) + '</span>';
+    if (showSavingsBadge && savings > 0) {
+      html += ' <span class="b2b-tier-savings" data-b2b-tier-savings>Save $' + savings.toFixed(2) + '</span>';
+    }
+    return html;
   }
 
-  function renderTierPrice(block, tier) {
+  function renderTierPrice(block, ctx) {
     var basePriceCents = parseInt(block.getAttribute('data-base-price-cents'), 10);
     if (!Number.isFinite(basePriceCents)) return;
-    var discountedDollars = applyTierDiscount(basePriceCents / 100, tier.discount_type, tier.discount_value);
-    block.textContent = 'Your price: $' + discountedDollars.toFixed(2);
-    block.setAttribute('data-tier-applied', String(tier.id));
+
+    var priceSelector = (block.getAttribute('data-price-selector') || '').trim();
+    if (!priceSelector) {
+      console.warn('[b2b-price] no price selector configured; skipping tier render');
+      return;
+    }
+
+    var target = document.querySelector(priceSelector);
+    if (!target) {
+      console.warn('[b2b-price] price selector matched no element: ' + priceSelector);
+      return;
+    }
+
+    var showBadge = block.getAttribute('data-show-savings-badge') === 'true';
+    var mode = block.getAttribute('data-price-display') || 'alongside';
+    var discountedDollars = applyTierDiscount(basePriceCents / 100, ctx.tier.discount_type, ctx.tier.discount_value);
+    var markup = buildTierMarkup(basePriceCents, discountedDollars, showBadge);
+
+    if (mode === 'replace') {
+      target.innerHTML = markup;
+    } else {
+      var existing = target.parentNode && target.parentNode.querySelector('[data-b2b-tier-block]');
+      if (existing) existing.remove();
+      var wrap = document.createElement('div');
+      wrap.setAttribute('data-b2b-tier-block', '');
+      wrap.className = 'b2b-tier-block';
+      wrap.innerHTML = 'Your price: ' + markup;
+      target.insertAdjacentElement('afterend', wrap);
+    }
+
+    block.setAttribute('data-tier-applied', String(ctx.tier.id));
   }
 
   function handleBlock(block, ctx) {
@@ -70,7 +103,7 @@
       return;
     }
     if (ctx && ctx.tier) {
-      renderTierPrice(block, ctx.tier);
+      renderTierPrice(block, ctx);
     }
   }
 
