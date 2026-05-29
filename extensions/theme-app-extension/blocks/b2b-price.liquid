@@ -11,12 +11,17 @@
   assets/b2b-price.js and mirrors packages/shared/src/pricing.ts; the Phase 1D
   parity test asserts they cannot drift.
 
+  Theme selector tuning: themes name their price/form containers
+  differently (Dawn uses `.product__price` + `.product-form`, Horizon uses
+  the `<product-price>` + `<product-form>` custom elements). The merchant
+  picks a preset, or selects "custom" and pastes their own selectors. See
+  MANUAL_STEPS.md §10.6.
+
   Liquid-side hide for `b2b_only` products: when the product carries the
   metafield b2b.b2b_only == true and the customer is not B2B, we render a
-  server-side <style> rule that hides the .product-form and .price selectors
-  (Dawn + most modern themes). This is defence-in-depth alongside the
-  template-level 404 guard the merchant pastes into their theme per
-  MANUAL_STEPS.md §10.2 (DECISIONS #6).
+  server-side <style> rule that hides the resolved price + form selectors.
+  This is defence-in-depth alongside the template-level 404 guard the
+  merchant pastes into their theme per MANUAL_STEPS.md §10.2 (DECISIONS #6).
 {% endcomment %}
 
 {%- if template contains 'product' and product -%}
@@ -28,10 +33,39 @@
 
   {%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
 
+  {%- assign preset = block.settings.theme_preset | default: 'auto' -%}
+  {%- case preset -%}
+    {%- when 'dawn' -%}
+      {%- assign price_selector = '.product__price, .price' -%}
+      {%- assign form_selector = '.product-form, .product-form__buttons' -%}
+    {%- when 'horizon' -%}
+      {%- assign price_selector = 'product-price' -%}
+      {%- assign form_selector = 'product-form' -%}
+    {%- when 'custom' -%}
+      {%- assign price_selector = block.settings.custom_price_selector | strip -%}
+      {%- assign form_selector = block.settings.custom_form_selector | strip -%}
+    {%- else -%}
+      {%- assign price_selector = 'product-price, .product__price, .price' -%}
+      {%- assign form_selector = 'product-form, .product-form, .product-form__buttons' -%}
+  {%- endcase -%}
+
   {%- if b2b_only and customer_is_b2b == false -%}
-    <style>
-      .product-form, .product__price, .price, .product-form__buttons { display: none !important; }
-    </style>
+    {%- assign hide_selectors = '' -%}
+    {%- if price_selector != blank -%}
+      {%- assign hide_selectors = price_selector -%}
+    {%- endif -%}
+    {%- if form_selector != blank -%}
+      {%- if hide_selectors != blank -%}
+        {%- assign hide_selectors = hide_selectors | append: ', ' | append: form_selector -%}
+      {%- else -%}
+        {%- assign hide_selectors = form_selector -%}
+      {%- endif -%}
+    {%- endif -%}
+    {%- if hide_selectors != blank -%}
+      <style>
+        {{ hide_selectors }} { display: none !important; }
+      </style>
+    {%- endif -%}
   {%- endif -%}
 
   <div
@@ -44,6 +78,8 @@
     data-app-proxy-path="{{ app_proxy_path }}"
     data-show-savings-badge="{% if block.settings.show_savings_badge %}true{% else %}false{% endif %}"
     data-price-display="{{ block.settings.price_display }}"
+    data-price-selector="{{ price_selector | escape }}"
+    data-form-selector="{{ form_selector | escape }}"
   ></div>
 
   <script src="{{ 'b2b-price.js' | asset_url }}" defer></script>
@@ -54,6 +90,31 @@
   "name": "B2B Tier Price",
   "target": "body",
   "settings": [
+    {
+      "type": "select",
+      "id": "theme_preset",
+      "label": "Theme selector preset",
+      "info": "Pick the preset that matches your theme. Choose 'custom' to paste your own selectors. See MANUAL_STEPS.md §10.6 for details.",
+      "options": [
+        { "value": "auto", "label": "Auto (Dawn + Horizon)" },
+        { "value": "dawn", "label": "Dawn (and Dawn-derived themes)" },
+        { "value": "horizon", "label": "Horizon" },
+        { "value": "custom", "label": "Custom selectors" }
+      ],
+      "default": "auto"
+    },
+    {
+      "type": "text",
+      "id": "custom_price_selector",
+      "label": "Custom price selector",
+      "info": "CSS selector for the theme's price container. Only used when preset is 'Custom selectors'."
+    },
+    {
+      "type": "text",
+      "id": "custom_form_selector",
+      "label": "Custom product form selector",
+      "info": "CSS selector for the theme's add-to-cart form. Only used when preset is 'Custom selectors'."
+    },
     {
       "type": "checkbox",
       "id": "show_savings_badge",
