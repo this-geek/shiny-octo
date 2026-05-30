@@ -74,3 +74,8 @@ ADMIN_ORIGIN = "https://b2b-companion-admin.pages.dev"
 # RESEND_API_KEY
 # TURNSTILE_SECRET_KEY  (Phase 1E; optional — captcha is skipped if unset)
 # TURNSTILE_SITE_KEY    (Phase 1E; optional, paired with the secret)
+# OPS_ACCESS_TEAM       (Phase 2; team subdomain for /_ops/* — e.g. "acme"
+#                        for acme.cloudflareaccess.com. Without this the
+#                        ops console returns 503 to every request.)
+# OPS_ACCESS_AUD        (Phase 2; CF Access Application Audience tag,
+#                        paired with OPS_ACCESS_TEAM.)

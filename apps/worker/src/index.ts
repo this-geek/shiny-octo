@@ -4,6 +4,7 @@ import { oauthRouter } from './routes/oauth.js';
 import { webhooksRouter, handleWebhookQueue } from './routes/webhooks.js';
 import { adminRouter } from './routes/admin.js';
 import { appProxyRouter } from './routes/app-proxy.js';
+import { opsRouter } from './routes/ops.js';
 import { securityHeadersMiddleware } from './middleware/security-headers.js';
 import { runActivationNudgesScan } from './handlers/activation-nudges.js';
 import { runGdprSweep } from './handlers/gdpr-sweep.js';
@@ -24,6 +25,7 @@ app.route('/auth', oauthRouter);
 app.route('/webhooks', webhooksRouter);
 app.route('/admin', adminRouter);
 app.route('/proxy', appProxyRouter);
+app.route('/_ops', opsRouter);
 
 app.get('/health', c => c.json({ ok: true }));
 
