@@ -231,15 +231,34 @@ export const APP_JS = String.raw`(function () {
     panel.innerHTML = '<p class="b2b-loading">Loading profile…</p>';
     api('/profile')
       .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
+        if (r.ok) return r.json().then(function (data) { return { ok: true, data: data }; });
+        return r.text().then(function (text) {
+          return { ok: false, status: r.status, body: text };
+        });
       })
-      .then(function (data) {
-        renderProfile(panel, data || {});
-        profileLoaded = true;
+      .then(function (result) {
+        if (result.ok) {
+          renderProfile(panel, result.data || {});
+          profileLoaded = true;
+          return;
+        }
+        var detail = result.body || '';
+        try {
+          var parsed = JSON.parse(detail);
+          if (parsed && parsed.error) detail = parsed.error;
+        } catch (e) { /* not JSON, keep raw text */ }
+        if (window.console && console.warn) {
+          console.warn('[b2b-portal] profile load failed', result.status, detail);
+        }
+        panel.innerHTML =
+          '<p class="b2b-error">Could not load profile (HTTP ' + result.status + ').</p>' +
+          (detail ? '<pre class="b2b-error-detail">' + escapeHtml(detail) + '</pre>' : '');
       })
-      .catch(function () {
-        panel.innerHTML = '<p class="b2b-error">Could not load profile.</p>';
+      .catch(function (err) {
+        if (window.console && console.warn) {
+          console.warn('[b2b-portal] profile load network error', err);
+        }
+        panel.innerHTML = '<p class="b2b-error">Could not load profile (network error).</p>';
       });
   }
 

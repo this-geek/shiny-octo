@@ -61,7 +61,13 @@ interface CompanyQueryResp {
         }>;
       };
       locations?: {
-        edges: Array<{ node: { id: string; name: string; taxExempt: boolean } }>;
+        edges: Array<{
+          node: {
+            id: string;
+            name: string;
+            taxSettings?: { taxExempt?: boolean | null } | null;
+          };
+        }>;
       };
     };
   };
@@ -87,7 +93,7 @@ async function loadCompanyFromShopify(
         }
       }
       locations(first: 20) {
-        edges { node { id name taxExempt } }
+        edges { node { id name taxSettings { taxExempt } } }
       }
     }
   }`;
@@ -122,7 +128,7 @@ async function loadCompanyFromShopify(
     locations: (co.locations?.edges ?? []).map(e => ({
       id: e.node.id,
       name: e.node.name,
-      tax_exempt: e.node.taxExempt,
+      tax_exempt: e.node.taxSettings?.taxExempt ?? false,
     })),
   };
 }
