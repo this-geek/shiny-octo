@@ -33,6 +33,7 @@ interface AdminSettings {
     rejected?: { subject: string; body: string };
     moreInfo?: { subject: string; body: string };
   };
+  priceDisplay?: { siteWide: boolean; mode: 'replace' | 'alongside'; showSavingsBadge: boolean };
 }
 
 interface LoaderData {
@@ -98,6 +99,10 @@ export default function Settings() {
   const [requireDocuments, setRequireDocuments] = useState(false);
   const [fields, setFields] = useState<ApplicationFormField[]>([]);
 
+  const [siteWideDisplay, setSiteWideDisplay] = useState(false);
+  const [priceMode, setPriceMode] = useState<'replace' | 'alongside'>('alongside');
+  const [showSavingsBadge, setShowSavingsBadge] = useState(true);
+
   const [approvedSubject, setApprovedSubject] = useState(DEFAULT_TEMPLATES.approved.subject);
   const [approvedBody, setApprovedBody] = useState(DEFAULT_TEMPLATES.approved.body);
   const [rejectedSubject, setRejectedSubject] = useState(DEFAULT_TEMPLATES.rejected.subject);
@@ -145,6 +150,11 @@ export default function Settings() {
         if (data.emailTemplates?.moreInfo) {
           setMoreInfoSubject(data.emailTemplates.moreInfo.subject);
           setMoreInfoBody(data.emailTemplates.moreInfo.body);
+        }
+        if (data.priceDisplay) {
+          setSiteWideDisplay(data.priceDisplay.siteWide ?? false);
+          setPriceMode(data.priceDisplay.mode ?? 'alongside');
+          setShowSavingsBadge(data.priceDisplay.showSavingsBadge ?? true);
         }
       } catch (err) {
         if (!cancelled) setError(`Could not load settings: ${String(err)}`);
@@ -201,6 +211,7 @@ export default function Settings() {
         rejected: { subject: rejectedSubject, body: rejectedBody },
         moreInfo: { subject: moreInfoSubject, body: moreInfoBody },
       },
+      priceDisplay: { siteWide: siteWideDisplay, mode: priceMode, showSavingsBadge },
     };
     try {
       const res = await fetch(`${workerBase}/admin/settings`, {
@@ -234,6 +245,9 @@ export default function Settings() {
     rejectedBody,
     moreInfoSubject,
     moreInfoBody,
+    siteWideDisplay,
+    priceMode,
+    showSavingsBadge,
   ]);
 
   const fieldTypeOptions = useMemo(
@@ -309,6 +323,46 @@ export default function Settings() {
                 error={!HEX.test(accentColor) ? 'Must be #rrggbb' : undefined}
               />
             </FormLayout>
+          </Card>
+        </Layout.AnnotatedSection>
+
+        <Layout.AnnotatedSection
+          title="Price display"
+          description="Controls where the buyer's tier-discounted price is shown on your storefront."
+        >
+          <Card>
+            <BlockStack gap="400">
+              <Checkbox
+                label="Show tier pricing across the whole store"
+                helpText="When on, the tier-discounted price appears on collection cards, search results, the home page and the cart drawer — not just the product page."
+                checked={siteWideDisplay}
+                onChange={setSiteWideDisplay}
+              />
+              {siteWideDisplay ? (
+                <Banner tone="info">
+                  Site-wide pricing assumes your store requires login (Online Store →
+                  Preferences → Restrict store access → require login). Without it, only
+                  logged-in B2B buyers see tier prices; everyone else sees your public
+                  prices. v1 applies percentage tiers across listing pages; fixed-amount
+                  tiers are shown accurately on the product page and at checkout.
+                </Banner>
+              ) : null}
+              <Select
+                label="Display mode"
+                options={[
+                  { label: 'Show alongside the standard price', value: 'alongside' },
+                  { label: 'Replace the standard price', value: 'replace' },
+                ]}
+                value={priceMode}
+                onChange={v => setPriceMode(v as 'replace' | 'alongside')}
+              />
+              <Checkbox
+                label="Show a savings badge"
+                helpText='Displays "Save $X" next to the discounted price.'
+                checked={showSavingsBadge}
+                onChange={setShowSavingsBadge}
+              />
+            </BlockStack>
           </Card>
         </Layout.AnnotatedSection>
 

@@ -4,6 +4,7 @@ import { webhookHmacMiddleware } from '../middleware/webhook-hmac.js';
 import { appUninstalledHandler } from '../handlers/app-uninstalled.js';
 import { shopUpdateHandler } from '../handlers/shop-update.js';
 import { publishTiersConfigHandler } from '../handlers/publish-tiers-config.js';
+import { publishPriceDisplayHandler } from '../handlers/publish-price-display.js';
 import {
   mirrorCompanyTierHandler,
   type MirrorCompanyTierPayload,
@@ -22,6 +23,7 @@ import {
 import { log } from '../lib/logger.js';
 
 export const INTERNAL_PUBLISH_TIERS_CONFIG = '_internal/publish-tiers-config';
+export const INTERNAL_PUBLISH_PRICE_DISPLAY = '_internal/publish-price-display';
 export const INTERNAL_MIRROR_COMPANY_TIER = '_internal/mirror-company-tier';
 export const INTERNAL_SEND_APPLICATION_EMAIL = '_internal/send-application-email';
 export const INTERNAL_SEND_GDPR_EXPORT = '_internal/send-gdpr-export';
@@ -211,6 +213,10 @@ async function dispatchWebhook(
 
     case INTERNAL_PUBLISH_TIERS_CONFIG:
       await publishTiersConfigHandler(shopDomain, env);
+      break;
+
+    case INTERNAL_PUBLISH_PRICE_DISPLAY:
+      await publishPriceDisplayHandler(shopDomain, env);
       break;
 
     case INTERNAL_MIRROR_COMPANY_TIER:

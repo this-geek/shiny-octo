@@ -363,4 +363,71 @@ describe('PUT /admin/settings', () => {
     );
     expect(res.status).toBe(404);
   });
+
+  it('rejects an invalid priceDisplay.mode', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceDisplay: { siteWide: true, mode: 'hide', showSavingsBadge: true },
+        }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toMatch(/priceDisplay\.mode/);
+  });
+
+  it('persists priceDisplay and enqueues the metafield publish', async () => {
+    const { env, state } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const sent: unknown[] = [];
+    env.WEBHOOK_QUEUE = { send: async (m: unknown) => void sent.push(m) } as unknown as Queue;
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceDisplay: { siteWide: true, mode: 'replace', showSavingsBadge: false },
+        }),
+      },
+      env,
+    );
+    expect(res.status).toBe(200);
+    const persisted = JSON.parse(state.row.settings_json ?? '{}');
+    expect(persisted.priceDisplay).toEqual({
+      siteWide: true,
+      mode: 'replace',
+      showSavingsBadge: false,
+    });
+    expect(sent).toHaveLength(1);
+    expect((sent[0] as { topic: string }).topic).toBe('_internal/publish-price-display');
+  });
+
+  it('does not enqueue a publish when the patch leaves priceDisplay untouched', async () => {
+    const { env } = makeEnv({ is_plus: 0, plus_banner_dismissed_at: null });
+    const sent: unknown[] = [];
+    env.WEBHOOK_QUEUE = { send: async (m: unknown) => void sent.push(m) } as unknown as Queue;
+    const app = buildApp(env);
+    const token = await makeSessionToken(API_SECRET, validClaims());
+    const res = await app.request(
+      '/admin/settings',
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand: { primaryColor: '#112233', accentColor: '#445566' } }),
+      },
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(sent).toHaveLength(0);
+  });
 });
