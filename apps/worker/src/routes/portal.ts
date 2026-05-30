@@ -3,7 +3,11 @@ import type { Context } from 'hono';
 import type { Env } from '../types.js';
 import { resolveBuyerByCustomerId, type BuyerCtx } from '../lib/buyer-context.js';
 import { hashIdAsync, log } from '../lib/logger.js';
-import { buildAssetListResponse, buildAssetDownloadResponse } from '../lib/asset-serve.js';
+import {
+  buildAssetListResponse,
+  buildAssetDownloadResponse,
+  checkAssetDownloadAccess,
+} from '../lib/asset-serve.js';
 import { buildCompanyProfile } from '../lib/company-profile.js';
 import { dismissTour, hasDismissedTour } from '../lib/tour-state.js';
 import { APP_JS } from './portal-assets/app-js.js';
@@ -228,6 +232,31 @@ portalRouter.post('/api/tour-dismiss', async c => {
   if (!r.ok) return r.response;
   await dismissTour(c.env.KV_SESSIONS, r.buyer.shop_id, r.buyer.customer_id);
   return c.json({ dismissed: true });
+});
+
+portalRouter.get('/api/assets/download/:id/probe', async c => {
+  const r = await resolveBuyerFromProxyQuery(c);
+  if (!r.ok) return r.response;
+  const access = await checkAssetDownloadAccess(c.env, r.buyer, c.req.param('id'));
+  switch (access.kind) {
+    case 'forbidden':
+      return c.json({ error: 'forbidden' }, 403);
+    case 'bad_request':
+      return c.json({ error: 'invalid id' }, 400);
+    case 'not_found':
+      return c.json({ error: 'not found' }, 404);
+    case 'rate_limited':
+      return c.json(
+        { error: 'monthly download limit reached; contact the merchant' },
+        429,
+      );
+    case 'server_error':
+      return c.json({ error: access.reason }, 500);
+    case 'link':
+      return c.json({ kind: 'link', url: access.url });
+    case 'stream_ready':
+      return c.json({ kind: 'stream_ready' });
+  }
 });
 
 portalRouter.get('/api/assets/download/:id', async c => {
