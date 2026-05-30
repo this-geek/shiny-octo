@@ -4,7 +4,11 @@ import { appProxyMiddleware } from '../middleware/app-proxy-hmac.js';
 import { decrypt } from '../lib/crypto.js';
 import { hashIdAsync, log } from '../lib/logger.js';
 import { resolveBuyerByCustomerId } from '../lib/buyer-context.js';
-import { buildAssetListResponse, buildAssetDownloadResponse } from '../lib/asset-serve.js';
+import {
+  buildAssetListResponse,
+  buildAssetDownloadResponse,
+  checkAssetDownloadAccess,
+} from '../lib/asset-serve.js';
 import { appProxyApplicationsRouter } from './app-proxy-applications.js';
 import { portalRouter } from './portal.js';
 
@@ -175,6 +179,37 @@ appProxyRouter.get('/assets/list', async c => {
   if (!r.ok) return c.json({ error: r.error }, r.status as 400 | 401 | 404 | 502);
   const body = await buildAssetListResponse(c.env, r.buyer);
   return c.json(body);
+});
+
+appProxyRouter.get('/assets/download/:id/probe', async c => {
+  const shopDomain = c.req.query('shop');
+  const customerId = c.req.query('logged_in_customer_id');
+  if (!shopDomain) return c.json({ error: 'missing shop' }, 400);
+  if (!customerId) return c.json({ error: 'login required' }, 401);
+
+  const r = await resolveBuyerByCustomerId(c.env, shopDomain, customerId);
+  if (!r.ok) return c.json({ error: r.error }, r.status as 400 | 401 | 404 | 502);
+
+  const access = await checkAssetDownloadAccess(c.env, r.buyer, c.req.param('id'));
+  switch (access.kind) {
+    case 'forbidden':
+      return c.json({ error: 'forbidden' }, 403);
+    case 'bad_request':
+      return c.json({ error: 'invalid id' }, 400);
+    case 'not_found':
+      return c.json({ error: 'not found' }, 404);
+    case 'rate_limited':
+      return c.json(
+        { error: 'monthly download limit reached; contact the merchant' },
+        429,
+      );
+    case 'server_error':
+      return c.json({ error: access.reason }, 500);
+    case 'link':
+      return c.json({ kind: 'link', url: access.url });
+    case 'stream_ready':
+      return c.json({ kind: 'stream_ready' });
+  }
 });
 
 appProxyRouter.get('/assets/download/:id', async c => {

@@ -42,12 +42,30 @@ export type DownloadResult =
   | { kind: 'link'; url: string }
   | { kind: 'stream'; body: ReadableStream; headers: Headers };
 
-export async function buildAssetDownloadResponse(
+export type AccessCheckResult =
+  | { kind: 'forbidden' }
+  | { kind: 'not_found' }
+  | { kind: 'bad_request' }
+  | { kind: 'rate_limited' }
+  | { kind: 'server_error'; reason: string }
+  | { kind: 'link'; asset: Asset; url: string }
+  | { kind: 'stream_ready'; asset: Asset };
+
+/**
+ * Run all precondition checks for an asset download without touching R2 or
+ * recording the download. Used by the probe endpoint so the portal SPA can
+ * surface "forbidden" / "rate limited" toasts before triggering a real
+ * navigation that downloads the file.
+ *
+ * Note on TOCTOU: between probe and the subsequent navigation, the budget
+ * could tip over the ceiling. That's acceptable — the streaming endpoint
+ * re-runs the same checks and will 429 the navigation if so.
+ */
+export async function checkAssetDownloadAccess(
   env: Env,
   buyer: BuyerCtx,
   assetIdRaw: string,
-  clientIp: string | null,
-): Promise<DownloadResult> {
+): Promise<AccessCheckResult> {
   if (!buyer.is_b2b) return { kind: 'forbidden' };
 
   const assetId = Number.parseInt(assetIdRaw, 10);
@@ -59,8 +77,7 @@ export async function buildAssetDownloadResponse(
 
   if (asset.type === 'link') {
     if (!asset.external_url) return { kind: 'server_error', reason: 'missing url' };
-    await recordDownloadAndLog(env, asset, buyer, 0, clientIp);
-    return { kind: 'link', url: asset.external_url };
+    return { kind: 'link', asset, url: asset.external_url };
   }
 
   const budget = await assertWithinBudget(env.KV_HOT_CACHE, buyer.shop_id);
@@ -75,7 +92,26 @@ export async function buildAssetDownloadResponse(
   if (!asset.r2_key) return { kind: 'server_error', reason: 'asset has no file' };
   assertKeyBelongsToShop(asset.r2_key, buyer.shop_id);
 
-  const obj = await env.ASSETS_BUCKET.get(asset.r2_key);
+  return { kind: 'stream_ready', asset };
+}
+
+export async function buildAssetDownloadResponse(
+  env: Env,
+  buyer: BuyerCtx,
+  assetIdRaw: string,
+  clientIp: string | null,
+): Promise<DownloadResult> {
+  const access = await checkAssetDownloadAccess(env, buyer, assetIdRaw);
+
+  if (access.kind === 'link') {
+    await recordDownloadAndLog(env, access.asset, buyer, 0, clientIp);
+    return { kind: 'link', url: access.url };
+  }
+  if (access.kind !== 'stream_ready') return access;
+
+  const asset = access.asset;
+  // checkAssetDownloadAccess guarantees r2_key is present for stream_ready.
+  const obj = await env.ASSETS_BUCKET.get(asset.r2_key as string);
   if (!obj) return { kind: 'not_found' };
 
   const bytes = asset.file_size_bytes ?? obj.size ?? 0;

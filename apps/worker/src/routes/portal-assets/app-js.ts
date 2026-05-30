@@ -122,12 +122,29 @@ export const APP_JS = String.raw`(function () {
       });
   }
 
+  function triggerNavigationDownload(id) {
+    // Real navigation via a hidden anchor so the browser honours
+    // Content-Disposition: attachment on the streaming response. fetch()
+    // can't do this — the bytes would just sit in JS memory.
+    var href = proxyBase + '/api/assets/download/' + encodeURIComponent(id);
+    var a = document.createElement('a');
+    a.href = href;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   function download(id, type, url) {
     if (type === 'link') {
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
-    api('/assets/download/' + encodeURIComponent(id))
+    // Probe first: same auth + visibility + budget checks as the streaming
+    // endpoint, but returns JSON without touching R2 or recording the
+    // download. Lets us show in-portal toasts for 403/429 instead of
+    // dumping a JSON error page into a new tab.
+    api('/assets/download/' + encodeURIComponent(id) + '/probe')
       .then(function (r) {
         if (r.status === 429) {
           window.alert('Monthly download limit reached. Please contact the store.');
@@ -137,6 +154,10 @@ export const APP_JS = String.raw`(function () {
           window.alert('You no longer have access to this file.');
           return null;
         }
+        if (r.status === 404) {
+          window.alert('This file is no longer available.');
+          return null;
+        }
         if (!r.ok) {
           window.alert('Download failed. Please try again.');
           return null;
@@ -144,7 +165,14 @@ export const APP_JS = String.raw`(function () {
         return r.json();
       })
       .then(function (data) {
-        if (data && data.url) window.location.href = data.url;
+        if (!data) return;
+        if (data.kind === 'link' && data.url) {
+          window.open(data.url, '_blank', 'noopener,noreferrer');
+        } else if (data.kind === 'stream_ready') {
+          triggerNavigationDownload(id);
+        } else {
+          window.alert('Download failed. Please try again.');
+        }
       })
       .catch(function () {
         window.alert('Download failed. Please try again.');
