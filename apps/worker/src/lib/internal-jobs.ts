@@ -1,6 +1,7 @@
 import type { Env } from '../types.js';
 import {
   INTERNAL_PUBLISH_TIERS_CONFIG,
+  INTERNAL_PUBLISH_PRICE_DISPLAY,
   INTERNAL_MIRROR_COMPANY_TIER,
   INTERNAL_SEND_APPLICATION_EMAIL,
   INTERNAL_SEND_GDPR_EXPORT,
@@ -40,6 +41,24 @@ export async function enqueueTiersConfigPublish(
   const msg: InternalJobMessage = {
     id: newId('tiers-config'),
     topic: INTERNAL_PUBLISH_TIERS_CONFIG,
+    shop_domain: shopDomain,
+    body: '',
+  };
+  await env.WEBHOOK_QUEUE.send(msg);
+}
+
+/**
+ * Enqueue a republish of `b2b.price_display`. Fire after the admin saves
+ * settings that touch `priceDisplay`. The consumer reads the shop's current
+ * settings and writes the Shop metafield the storefront overlay reads.
+ */
+export async function enqueuePriceDisplayPublish(
+  env: Env,
+  shopDomain: string,
+): Promise<void> {
+  const msg: InternalJobMessage = {
+    id: newId('price-display'),
+    topic: INTERNAL_PUBLISH_PRICE_DISPLAY,
     shop_domain: shopDomain,
     body: '',
   };

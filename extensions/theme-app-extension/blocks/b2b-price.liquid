@@ -1,20 +1,32 @@
 {% comment %}
-  b2b-price.liquid — Theme App Embed (Phase 1B, restructured Phase 1H+).
+  b2b-price.liquid — Theme App Embed (Phase 1B; site-wide in Phase 1K).
 
   App embed (target=body) so merchants enable it once in the theme editor's
-  App embeds panel rather than dropping it into every section. It does
-  nothing on non-product templates so adding it globally is safe.
+  App embeds panel rather than dropping it into every section.
 
-  Renders the tier-discounted price client-side via assets/b2b-price.js. The
-  block exposes the data the JS needs as data-* attributes; no inline scripts
-  (CSP per §9 of the requirements). The discount math itself lives in
-  assets/b2b-price.js and mirrors packages/shared/src/pricing.ts; the Phase 1D
-  parity test asserts they cannot drift.
+  Two rendering paths, both driven by assets/b2b-price.js (no inline scripts —
+  CSP per §9). The discount math mirrors packages/shared/src/pricing.ts; the
+  Phase 1D parity test asserts they cannot drift.
 
-  Theme selector tuning: themes name their price/form containers
-  differently (Dawn uses `.product__price` + `.product-form`, Horizon uses
-  the `<product-price>` + `<product-form>` custom elements). The merchant
-  picks a preset, or selects "custom" and pastes their own selectors. See
+  1. Per-product block (product templates only): emits the exact variant
+     base price in cents so the tier price is computed accurately on the PDP.
+
+  2. Site-wide overlay controller (every template, when enabled): when the
+     app-config toggle `shop.metafields.b2b.price_display.value.site_wide` is
+     on, the JS scans the theme's price containers across collections, search,
+     the home page, related products and the cart drawer, and overlays the
+     tier delta on top of the already-rendered price. Percent tiers only in
+     v1; amount tiers / per-product exclusions need the authoritative
+     /tier-prices map (DECISIONS #21, tracked as v2).
+
+  The site-wide toggle and display mode are controlled from app config (the
+  Shop metafield), falling back to the theme-editor block settings when the
+  metafield is absent.
+
+  Theme selector tuning: themes name their price/form containers differently
+  (Dawn uses `.product__price` + `.product-form`, Horizon uses the
+  `<product-price>` + `<product-form>` custom elements). The merchant picks a
+  preset, or selects "custom" and pastes their own selectors. See
   MANUAL_STEPS.md §10.6.
 
   Liquid-side hide for `b2b_only` products: when the product carries the
@@ -24,30 +36,44 @@
   merchant pastes into their theme per MANUAL_STEPS.md §10.2 (DECISIONS #6).
 {% endcomment %}
 
+{%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
+
+{%- comment -%} App-config (Shop metafield) drives site-wide display; theme-editor settings are the fallback. {%- endcomment -%}
+{%- assign pd = shop.metafields.b2b.price_display.value -%}
+{%- assign site_wide = false -%}
+{%- assign price_mode = block.settings.price_display -%}
+{%- assign show_badge = block.settings.show_savings_badge -%}
+{%- if pd -%}
+  {%- if pd.site_wide -%}{%- assign site_wide = true -%}{%- endif -%}
+  {%- if pd.mode != blank -%}{%- assign price_mode = pd.mode -%}{%- endif -%}
+  {%- unless pd.show_savings_badge == nil -%}{%- assign show_badge = pd.show_savings_badge -%}{%- endunless -%}
+{%- endif -%}
+
+{%- assign preset = block.settings.theme_preset | default: 'auto' -%}
+{%- case preset -%}
+  {%- when 'dawn' -%}
+    {%- assign price_selector = '.product__price, .price' -%}
+    {%- assign form_selector = '.product-form, .product-form__buttons' -%}
+  {%- when 'horizon' -%}
+    {%- assign price_selector = 'product-price' -%}
+    {%- assign form_selector = 'product-form' -%}
+  {%- when 'custom' -%}
+    {%- assign price_selector = block.settings.custom_price_selector | strip -%}
+    {%- assign form_selector = block.settings.custom_form_selector | strip -%}
+  {%- else -%}
+    {%- assign price_selector = 'product-price, .product__price, .price' -%}
+    {%- assign form_selector = 'product-form, .product-form, .product-form__buttons' -%}
+{%- endcase -%}
+
+{%- if show_badge -%}{%- assign show_badge_attr = 'true' -%}{%- else -%}{%- assign show_badge_attr = 'false' -%}{%- endif -%}
+
+{%- comment -%} Path 1 — per-product block (PDP only). {%- endcomment -%}
 {%- if template contains 'product' and product -%}
   {%- assign b2b_only = product.metafields.b2b.b2b_only -%}
   {%- assign customer_is_b2b = false -%}
   {%- if customer and customer.b2b? -%}
     {%- assign customer_is_b2b = true -%}
   {%- endif -%}
-
-  {%- assign app_proxy_path = shop.metafields.b2b.app_proxy_path | default: 'apps/b2b' -%}
-
-  {%- assign preset = block.settings.theme_preset | default: 'auto' -%}
-  {%- case preset -%}
-    {%- when 'dawn' -%}
-      {%- assign price_selector = '.product__price, .price' -%}
-      {%- assign form_selector = '.product-form, .product-form__buttons' -%}
-    {%- when 'horizon' -%}
-      {%- assign price_selector = 'product-price' -%}
-      {%- assign form_selector = 'product-form' -%}
-    {%- when 'custom' -%}
-      {%- assign price_selector = block.settings.custom_price_selector | strip -%}
-      {%- assign form_selector = block.settings.custom_form_selector | strip -%}
-    {%- else -%}
-      {%- assign price_selector = 'product-price, .product__price, .price' -%}
-      {%- assign form_selector = 'product-form, .product-form, .product-form__buttons' -%}
-  {%- endcase -%}
 
   {%- if b2b_only and customer_is_b2b == false -%}
     {%- assign hide_selectors = '' -%}
@@ -76,12 +102,25 @@
     data-b2b-only="{% if b2b_only %}true{% else %}false{% endif %}"
     data-customer-is-b2b="{% if customer_is_b2b %}true{% else %}false{% endif %}"
     data-app-proxy-path="{{ app_proxy_path }}"
-    data-show-savings-badge="{% if block.settings.show_savings_badge %}true{% else %}false{% endif %}"
-    data-price-display="{{ block.settings.price_display }}"
+    data-show-savings-badge="{{ show_badge_attr }}"
+    data-price-display="{{ price_mode }}"
     data-price-selector="{{ price_selector | escape }}"
     data-form-selector="{{ form_selector | escape }}"
   ></div>
+{%- endif -%}
 
+{%- comment -%} Path 2 — site-wide overlay controller (every template, when enabled). {%- endcomment -%}
+{%- if site_wide and price_selector != blank -%}
+  <div
+    data-b2b-price-controller
+    data-app-proxy-path="{{ app_proxy_path }}"
+    data-price-selector="{{ price_selector | escape }}"
+    data-show-savings-badge="{{ show_badge_attr }}"
+    data-price-display="{{ price_mode }}"
+  ></div>
+{%- endif -%}
+
+{%- if template contains 'product' or site_wide -%}
   <script src="{{ 'b2b-price.js' | asset_url }}" defer></script>
 {%- endif -%}
 
@@ -119,12 +158,14 @@
       "type": "checkbox",
       "id": "show_savings_badge",
       "label": "Show savings badge",
+      "info": "Fallback default; the app's Settings → Price display overrides this when site-wide display is configured.",
       "default": true
     },
     {
       "type": "select",
       "id": "price_display",
       "label": "Price display mode",
+      "info": "Fallback default; the app's Settings → Price display overrides this when site-wide display is configured.",
       "options": [
         { "value": "replace", "label": "Replace standard price" },
         { "value": "alongside", "label": "Show alongside standard price" }

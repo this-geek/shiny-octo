@@ -114,8 +114,9 @@ Target: shippable to one merchant in production. App Store readiness is Phase 5,
 
 - Public visitors see only products with `b2b_only` metafield = `false` (default). Products with `b2b_only` = `true` are hidden from collections, search results, and direct URLs (404).
 - Logged-in buyers whose customer record is linked to an approved Company can see all products, including B2B-only.
-- Logged-in buyers see B2B prices on PDP, collection cards, search results, and cart.
+- Logged-in buyers see B2B prices on PDP, collection cards, search results, the home page / featured blocks, and cart — wherever a price renders. Site-wide display of the tier delta is controlled by an app-config toggle; see §4.3 "Site-wide price display" and DECISIONS #21.
 - Guests and non-B2B logged-in customers see no price and no Add to Cart on `b2b_only` products. On public products, they see public prices normally.
+- Recommended store configuration is Online Store → Preferences → Restrict store access → require login (B2B force-login). With it enabled there are no anonymous visitors, which eliminates price-flash risk site-wide and lets the tier price render on first paint.
 
 **Implementation**
 
@@ -181,15 +182,27 @@ Shopify allows 3 active catalogs on non-Plus plans. We let merchants define up t
 - Company-to-tier mapping: `{ shop_id, company_id, tier_id }`. One company has exactly one tier.
 - Shopify Function (cart-transform): reads the buyer's company, looks up tier via metafield mirror, applies discount to all eligible line items.
 - The catalog the buyer is in (via Shopify Markets) provides the base price; our Function discounts further.
-- PDP price display: storefront block computes the same discount client-side using the same logic to avoid mismatches at checkout.
 - Mirror tier mapping to Company metafield `b2b.tier_id` so the Function can read it (Functions cannot query our D1).
+
+**Site-wide price display (controlled in app config)**
+
+Tier pricing must be visible everywhere a price renders — collection cards, search results, the home page / featured-product blocks, related products, the cart drawer, and the PDP — not just the PDP. Native Shopify Catalogs already render the catalog base price site-wide for a buyer in a Company; the gap is our *additional tier delta* (the discount beyond the 3-catalog limit), which the `cart-transform` Function only applies at cart/checkout and so is invisible while browsing. Closing that gap is a display concern, not a pricing-engine concern: the Function remains the source of truth at checkout.
+
+- **One control, whole-site effect.** A single admin toggle (`priceDisplay.siteWide` in `AdminSettings`) is mirrored to Shop metafield `b2b.price_display`. The existing `b2b-price` Theme App Embed reads that metafield and, when enabled, runs on every template instead of only the product template.
+- **Overlay, never recompute.** The storefront engine overlays our tier delta *on top of the price Shopify already rendered* (the native catalog price), so it cannot double-discount or drift from the Function. Both percent and fixed-amount tiers are applied client-side against the displayed price: the `cart-transform` Function discounts every line uniformly with no per-product exclusions, so the same per-unit operation on the rendered price is parity-exact with checkout. The overlay only ever reduces a price, and a `MutationObserver` extends it to AJAX-rendered surfaces (cart drawer, quick view, infinite scroll).
+- **Plus safety.** Tier resolution is Plus-aware: on Shopify Plus the discount Function is disabled (native catalogs price directly), so `/tier-context` returns no tier and the overlay shows no discount that checkout wouldn't honour. B2B membership still resolves so `b2b_only` gating keeps working. (See DECISIONS #21 for why a server-side `/tier-prices` per-variant map proved unnecessary while discounting stays uniform.)
+- **Force-login assumption.** This is designed for stores that enable Online Store → Preferences → Restrict store access → require login (B2B force-login), so there are no anonymous visitors. The overlay is still safe without it (no resolved tier → no-op → public price shows), but force-login is the supported configuration and unlocks an optional zero-FOUC server-side Liquid render mode. The go-live checklist and a one-time admin banner surface this prerequisite.
+- **Theme constraint.** Product cards render inside theme section loops, not app-block slots, so per-card Liquid injection isn't possible theme-agnostically. The DOM-scan overlay is the portable path; the merchant-selected price-container preset is extended to card selectors (Dawn/Horizon/custom). See DECISIONS #21.
+- **Plus shops:** the overlay no-ops (native catalogs already render site-wide), matching the Function's Plus behaviour.
 
 **Acceptance criteria**
 
 - PDP display matches cart price matches checkout price for every tier on every product. Any mismatch is a P0 bug.
+- When site-wide display is on, the tier-discounted price shown on collection cards, search results, home/featured blocks, and the cart drawer matches the PDP and the checkout price for the same variant.
 - Function executes under 5ms for carts up to 200 line items.
+- Site-wide overlay holds CLS ≤ 0.1 and INP ≤ 200ms on a 50-product collection page (per §10 Built for Shopify benchmarks).
 - Disabling a tier removes its discount without losing the tier-to-company mappings (soft delete).
-- Plus shops: this entire feature is disabled, with admin banner.
+- Plus shops: the tier Function and the site-wide overlay are both disabled, with admin banner.
 
 ### 4.4 Dealer asset portal — the wedge
 

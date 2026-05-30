@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sample Collection — Impulse</title>
+  </head>
+  <body class="template-collection">
+    <main>
+      <div class="grid grid--uniform">
+        <div class="grid__item product-card">
+          <a href="/products/a" class="grid-product__link">Product A</a>
+          <span class="price"><span class="grid-product__price">$50.00</span></span>
+        </div>
+        <div class="grid__item product-card">
+          <a href="/products/b" class="grid-product__link">Product B</a>
+          <span class="price"><span class="grid-product__price">$100.00</span></span>
+        </div>
+        <div class="grid__item product-card">
+          <a href="/products/c" class="grid-product__link">Product C</a>
+          <span class="price"><span class="grid-product__price">$25.00</span></span>
+        </div>
+      </div>
+
+      <div
+        data-b2b-price-controller
+        data-app-proxy-path="apps/b2b"
+        data-price-selector="product-price, .product__price, .price"
+        data-show-savings-badge="true"
+        data-price-display="alongside"
+      ></div>
+    </main>
+    <script src="../b2b-price.js" defer></script>
+  </body>
+</html>

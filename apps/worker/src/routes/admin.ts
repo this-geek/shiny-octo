@@ -11,6 +11,7 @@ import {
   SettingsValidationError,
   validateAdminSettingsPatch,
 } from '../lib/settings.js';
+import { enqueuePriceDisplayPublish } from '../lib/internal-jobs.js';
 import { adminTiersRouter } from './admin-tiers.js';
 import { adminAssetsRouter } from './admin-assets.js';
 import { adminApplicationsRouter } from './admin-applications.js';
@@ -109,6 +110,12 @@ adminRouter.put('/settings', async c => {
   await c.env.DB.prepare(`UPDATE shops SET settings_json = ? WHERE shopify_domain = ?`)
     .bind(JSON.stringify(merged), shopDomain)
     .run();
+
+  // Mirror price-display config to the Shop metafield the storefront overlay
+  // reads. Only when the patch touched it, to avoid needless metafield writes.
+  if (patch.priceDisplay !== undefined) {
+    await enqueuePriceDisplayPublish(c.env, shopDomain);
+  }
 
   log('info', 'admin: settings updated', {
     shop: shopDomain,

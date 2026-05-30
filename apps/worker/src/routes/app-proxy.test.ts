@@ -49,6 +49,7 @@ interface ShopRow {
   id: number;
   shopify_domain: string;
   access_token_encrypted: string;
+  is_plus?: number;
 }
 interface TierRow {
   id: number;
@@ -259,5 +260,43 @@ describe('GET /proxy/tier-context', () => {
     expect(json.b2b).toBe(true);
     expect(json.tier).toBe(null);
     expect(json.company_id).toBe(COMPANY_ID);
+  });
+
+  it('returns no tier on Plus even with a tier mapping (Function is disabled there)', async () => {
+    const encryptedToken = await encrypt('shpat_test', SHOP_DOMAIN, MASTER_KEY);
+    const { env } = makeEnv({
+      shop: {
+        id: 7,
+        shopify_domain: SHOP_DOMAIN,
+        access_token_encrypted: encryptedToken,
+        is_plus: 1,
+      },
+      mapping: { shop_id: 7, shopify_company_id: COMPANY_ID, tier_id: 3 },
+      tier: { id: 3, name: 'Gold', discount_type: 'percent', discount_value: 15 },
+    });
+
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: { customer: { companyContactProfiles: [{ company: { id: COMPANY_ID } }] } },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    const app = buildApp();
+    const url = await buildUrl({
+      shop: SHOP_DOMAIN,
+      timestamp: '1700000000',
+      logged_in_customer_id: '12345',
+    });
+    const res = await app.request(url, {}, env);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { b2b: boolean; tier: unknown; plus?: boolean };
+    // B2B membership still resolves (b2b_only gating needs it) but no discount.
+    expect(json.b2b).toBe(true);
+    expect(json.tier).toBe(null);
+    expect(json.plus).toBe(true);
   });
 });

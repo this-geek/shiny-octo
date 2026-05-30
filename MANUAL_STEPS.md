@@ -464,6 +464,44 @@ A future public-facing support site will host per-theme recipes
 (screenshot + ready-to-paste selectors). Until then, contributions to
 this table are welcome via PR.
 
+### 10.7 Site-wide tier pricing (Phase 1K)
+
+By default the tier price is only refined on the product page. To show it
+across collections, search results, the home page, and the cart drawer:
+
+1. In the embedded app → **Settings → Price display**, turn on **Show tier
+   pricing across the whole store**. Pick the display mode (alongside vs
+   replace) and whether to show the savings badge, then **Save**. This writes
+   the `b2b.price_display` Shop metafield that the storefront embed reads — no
+   theme edit required.
+2. **Require login (strongly recommended).** In **Online Store → Preferences →
+   Restrict store access**, enable **require login / B2B login**. With it on
+   there are no anonymous visitors, so tier prices render on first paint and
+   never flash to the public. Without it, only logged-in B2B buyers see tier
+   prices; everyone else sees your public prices (still safe, just not gated).
+3. The overlay reuses the **Theme selector preset** from §10.6 to find price
+   containers on listing pages. If listing-card prices aren't being refined,
+   switch to **Custom selectors** and add the card's price selector (e.g.
+   Dawn's `.price`).
+
+Notes:
+
+- **Both percent and fixed-amount tiers** are supported site-wide; the overlay
+  applies exactly what checkout applies.
+- **Shopify Plus:** the overlay is automatically disabled (native Catalogs do
+  the pricing), the same way the discount Function is — no action needed.
+- The overlay only ever **lowers** a displayed price and skips anything it
+  can't parse, so it's safe to leave on across all templates.
+
+### 10.8 Verify checklist (Phase 1K site-wide — manual)
+
+- [ ] With site-wide on, an approved B2B buyer sees the tier price on a
+      collection page, in search results, and on the home page — matching the
+      PDP and the price at checkout.
+- [ ] The cart drawer shows the tier price after adding an item (AJAX surface).
+- [ ] A guest / non-B2B customer sees public prices everywhere (no discount).
+- [ ] On a Plus dev store, no tier discount is shown anywhere on the storefront.
+
 ---
 
 ## 11. Deploying the Embedded Admin (Cloudflare Pages)

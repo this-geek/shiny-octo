@@ -47,10 +47,22 @@ export interface EmailTemplates {
   moreInfo?: EmailTemplate;
 }
 
+const PRICE_DISPLAY_MODES = ['replace', 'alongside'] as const;
+type PriceDisplayMode = (typeof PRICE_DISPLAY_MODES)[number];
+
+export interface PriceDisplaySettings {
+  /** Master toggle: show the tier-discounted price wherever a price renders. */
+  siteWide: boolean;
+  /** Replace the standard price, or render the tier price alongside it. */
+  mode: PriceDisplayMode;
+  showSavingsBadge: boolean;
+}
+
 export interface AdminSettings {
   brand?: BrandSettings;
   applicationForm?: ApplicationFormSettings;
   emailTemplates?: EmailTemplates;
+  priceDisplay?: PriceDisplaySettings;
 }
 
 export type SettingsBlob = AdminSettings & Record<string, unknown>;
@@ -188,6 +200,25 @@ function validateEmailTemplates(input: unknown): EmailTemplates {
   return out;
 }
 
+function validatePriceDisplay(input: unknown): PriceDisplaySettings {
+  if (!isObject(input)) {
+    throw new SettingsValidationError('priceDisplay must be an object');
+  }
+  const { siteWide, mode, showSavingsBadge } = input;
+  if (typeof siteWide !== 'boolean') {
+    throw new SettingsValidationError('priceDisplay.siteWide must be boolean');
+  }
+  if (typeof mode !== 'string' || !(PRICE_DISPLAY_MODES as readonly string[]).includes(mode)) {
+    throw new SettingsValidationError(
+      `priceDisplay.mode must be one of ${PRICE_DISPLAY_MODES.join(', ')}`,
+    );
+  }
+  if (typeof showSavingsBadge !== 'boolean') {
+    throw new SettingsValidationError('priceDisplay.showSavingsBadge must be boolean');
+  }
+  return { siteWide, mode: mode as PriceDisplayMode, showSavingsBadge };
+}
+
 export function validateAdminSettingsPatch(input: unknown): AdminSettings {
   if (!isObject(input)) {
     throw new SettingsValidationError('payload must be an object');
@@ -199,6 +230,9 @@ export function validateAdminSettingsPatch(input: unknown): AdminSettings {
   }
   if (input.emailTemplates !== undefined) {
     out.emailTemplates = validateEmailTemplates(input.emailTemplates);
+  }
+  if (input.priceDisplay !== undefined) {
+    out.priceDisplay = validatePriceDisplay(input.priceDisplay);
   }
   return out;
 }
@@ -218,10 +252,11 @@ export function mergeSettings(current: SettingsBlob, patch: AdminSettings): Sett
 }
 
 export function pickAdminSettings(blob: SettingsBlob): AdminSettings {
-  const { brand, applicationForm, emailTemplates } = blob as AdminSettings;
+  const { brand, applicationForm, emailTemplates, priceDisplay } = blob as AdminSettings;
   const out: AdminSettings = {};
   if (brand !== undefined) out.brand = brand;
   if (applicationForm !== undefined) out.applicationForm = applicationForm;
   if (emailTemplates !== undefined) out.emailTemplates = emailTemplates;
+  if (priceDisplay !== undefined) out.priceDisplay = priceDisplay;
   return out;
 }

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sample Collection — Dawn</title>
+  </head>
+  <body class="template-collection">
+    <main>
+      <ul class="product-grid">
+        <li class="card">
+          <a href="/products/a" class="card__heading">Product A</a>
+          <span class="price"><span class="price-item price-item--regular">$50.00</span></span>
+        </li>
+        <li class="card">
+          <a href="/products/b" class="card__heading">Product B</a>
+          <span class="price"><span class="price-item price-item--regular">$100.00</span></span>
+        </li>
+        <li class="card">
+          <a href="/products/c" class="card__heading">Product C</a>
+          <span class="price"><span class="price-item price-item--regular">$25.00</span></span>
+        </li>
+      </ul>
+
+      <div
+        data-b2b-price-controller
+        data-app-proxy-path="apps/b2b"
+        data-price-selector=".product__price, .price"
+        data-show-savings-badge="true"
+        data-price-display="alongside"
+      ></div>
+    </main>
+    <script src="../b2b-price.js" defer></script>
+  </body>
+</html>

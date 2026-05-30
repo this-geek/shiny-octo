@@ -505,12 +505,18 @@ function GoLiveStep({
       <List type="bullet">
         <List.Item>Enable the <strong>B2B Tier Price</strong> embed in the theme editor (App embeds panel).</List.Item>
         <List.Item>
+          To show tier pricing beyond the product page, turn on <strong>Show tier pricing across the whole store</strong> in <Link url="/settings">Settings → Price display</Link>. It applies to collections, search, the home page, and the cart drawer with no theme edit.
+        </List.Item>
+        <List.Item>
+          If you run a login-gated B2B store, enable <strong>require login</strong> under <strong>Online Store → Preferences → Restrict store access</strong> so prices render on first paint and never show to the public.
+        </List.Item>
+        <List.Item>
           Add the <strong>B2B Wholesale Application</strong> embed on the page path where buyers will apply, and link to it from your storefront nav.
         </List.Item>
         <List.Item>
           Enable the <strong>B2B Dealer Asset Portal</strong> Customer Account extension and set its <code>worker_base_url</code> setting.
         </List.Item>
-        <List.Item>Sign in as your test buyer and verify tier pricing, the assets page, and a small test order.</List.Item>
+        <List.Item>Sign in as your test buyer and verify tier pricing on a collection page and the PDP, the assets page, and a small test order.</List.Item>
       </List>
       {!state.done && (
         <InlineStack>
