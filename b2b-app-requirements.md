@@ -1,8 +1,8 @@
 # B2B Wholesale Companion — Requirements
 
-**Status:** Working draft v0.1
+**Status:** Working draft v0.2
 **Audience:** Claude Code (implementation) and any human collaborators
-**Last updated:** 2026-05-18
+**Last updated:** 2026-05-30
 
 ---
 
@@ -386,7 +386,7 @@ See Section 4.2 for fields. Behaviour:
 ### Step 4 — Approval email (merchant-templatable)
 
 - Welcome, summary of tier and terms granted.
-- Magic link (one-time, expires 7 days) → set password flow → land in `/account` with B2B view active.
+- Magic link (one-time, expires 7 days) via the Customer Account API → land in `/account` with B2B view active. No password-set step (per DECISIONS #7).
 - Link to onboarding guide (optional merchant-supplied PDF or video).
 
 ### Step 5 — First login experience
