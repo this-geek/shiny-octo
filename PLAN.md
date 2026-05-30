@@ -114,6 +114,20 @@ State persists in `shops.settings_json.onboarding` (lib/onboarding-store.ts). St
 - [x] **P0** Activation nudges (14/30/60 day) via Workers Cron Triggers + Resend. *(Daily cron `0 9 * * *` in `wrangler.toml` fires `scheduled` → `runActivationNudgesScan` (`handlers/activation-nudges.ts`). For each approved application within the 14-70 day window, the handler picks the nudge milestone, checks `application_nudges` (new table in `migrations/0004_phase1j_nudges.sql`) for prior sends, then probes Shopify orders via `lib/shopify-orders.ts` and skips active buyers. Enqueues through the existing `_internal/send-application-email` queue with three new templates (`nudge_14d/30d/60d`).)*
 - [x] **P0** Day-1 company profile view (read-only tier, team, tax-exempt status). *(`lib/company-profile.ts` assembles tier (from D1) + company contacts + locations + per-location tax-exempt flag (via Admin GraphQL). New route `GET /customer-account/profile`. UI in `extensions/customer-account-asset-portal/src/CompanyProfileView.tsx`, accessible via a tab on the existing customer-account asset portal page so we keep a single `customer-account.page.render` target.)*
 
+### 1K — §4.3 Site-wide tier-price display (per DECISIONS #21)
+
+Lifts the PDP-only scope of the `b2b-price` overlay so the tier delta shows wherever a price renders. Assumes B2B force-login (Online Store → Preferences → Restrict store access). Estimated ~3.5–4.5 dev-weeks total; v1 (percent-only) ≈ 1.5–2 weeks.
+
+- [ ] **P0** App-config toggle `priceDisplay.siteWide` (+ `mode`, `showSavingsBadge`, optional per-surface flags) in `AdminSettings` validation (`apps/worker/src/lib/settings.ts`) and the `/settings` admin UI.
+- [ ] **P0** Mirror `priceDisplay` to Shop metafield `b2b.price_display` on settings save (reuse the metafield-mirror queue pattern from 1D).
+- [ ] **P0** Lift the `template contains 'product'` guard in `b2b-price.liquid`; boot the embed on every template when the metafield toggle is on; extend the theme-selector preset to card containers (Dawn/Horizon/custom).
+- [ ] **P0** Generalize `b2b-price.js` to a multi-node site-wide overlay: scan price containers, overlay the tier delta on top of the rendered price, percent tiers via `shop.money_format` parsing. No double-discount of native catalog price.
+- [ ] **P1** App Proxy `/tier-prices?variant_ids=…` authoritative batch map (KV-cached, reuses `packages/shared`) for amount tiers + per-product exclusions (`b2b_only`, compare-at/sale).
+- [ ] **P1** Native-catalog reconciliation: overlay no-ops when the tier delta is zero (tier mapped 1:1 to a native catalog) and on Plus.
+- [ ] **P0** Force-login guidance: go-live checklist item + one-time admin banner ("enable require-login for site-wide pricing"). Optional server-side Liquid render mode (no-FOUC) is a stretch item.
+- [ ] **P0** Parity tests (client overlay ↔ Function ↔ `/tier-prices` identical totals) + Playwright site-wide matrix (collections / search / home on Dawn + Horizon + Impulse + Prestige) holding CLS ≤ 0.1 / INP ≤ 200ms.
+- [ ] **P1** MANUAL_STEPS: document card-container selectors per theme and the require-login prerequisite.
+
 ---
 
 ## Phase 2 — Hardening & GDPR (target: 1–2 weeks)
