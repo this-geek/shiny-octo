@@ -1,8 +1,8 @@
 # B2B Wholesale Companion — Requirements
 
-**Status:** Working draft v0.1
+**Status:** Working draft v0.2
 **Audience:** Claude Code (implementation) and any human collaborators
-**Last updated:** 2026-05-18
+**Last updated:** 2026-05-30
 
 ---
 
@@ -121,7 +121,7 @@ Target: shippable to one merchant in production. App Store readiness is Phase 5,
 **Implementation**
 
 - Storefront: Theme App Extension App Embed Block that runs on every page, reads `customer.b2b?` and `customer.companyContactProfiles`, and replaces price/CTA blocks accordingly.
-- Server-side filtering: a Storefront API metafield filter rule, applied at collection-level via a redirect to a collection page that excludes `b2b_only` items.
+- Server-side filtering: a Search & Discovery metafield filter rule that excludes `b2b_only` items from collections and search; B2B-only products return 404 for non-B2B visitors. No redirect to an alternate collection (per DECISIONS #6).
 - Search: register a `collection.products` modification via metaobject; verify it filters correctly on Liquid Search and Search & Discovery app users.
 - Caching: cache the customer's company-tier mapping in localStorage with a 5-minute TTL; invalidate on login/logout.
 
@@ -181,7 +181,7 @@ Shopify allows 3 active catalogs on non-Plus plans. We let merchants define up t
 - Tier record: `{ id, shop_id, name, discount_type ('percent'|'amount'), discount_value, default_catalog_id (Shopify), priority }`.
 - Company-to-tier mapping: `{ shop_id, company_id, tier_id }`. One company has exactly one tier.
 - Shopify Function (cart-transform): reads the buyer's company, looks up tier via metafield mirror, applies discount to all eligible line items.
-- The catalog the buyer is in (via Shopify Markets) provides the base price; our Function discounts further.
+- The Catalog assigned to the buyer's Company Location provides the base price; Markets contributes only currency/locale/tax. Our Function discounts off whatever line price Shopify passes in (per DECISIONS #5).
 - Mirror tier mapping to Company metafield `b2b.tier_id` so the Function can read it (Functions cannot query our D1).
 
 **Site-wide price display (controlled in app config)**
@@ -386,7 +386,7 @@ See Section 4.2 for fields. Behaviour:
 ### Step 4 — Approval email (merchant-templatable)
 
 - Welcome, summary of tier and terms granted.
-- Magic link (one-time, expires 7 days) → set password flow → land in `/account` with B2B view active.
+- Magic link (one-time, expires 7 days) via the Customer Account API → land in `/account` with B2B view active. No password-set step (per DECISIONS #7).
 - Link to onboarding guide (optional merchant-supplied PDF or video).
 
 ### Step 5 — First login experience
@@ -583,3 +583,19 @@ These need to be resolved before or during Phase 1. Track in project board.
 4. Do we need our own application-fraud signal (disposable email detection, geo-velocity checks)?
 5. Default email sender — `noreply@<our domain>` with merchant brand, or Shopify Email API for reliability?
 6. Pilot merchant payment for the bespoke work — flat fee, hourly, or credit against future SaaS bill?
+
+Resolutions for these (and the ambiguities they raise) are tracked in `DECISIONS.md`.
+
+---
+
+## 13. Revision History
+
+- **v0.2** (2026-05-30) — reconciled with `DECISIONS.md`: §4.3 base price from
+  the Company Location's Catalog with Markets contributing only
+  currency/locale/tax (#5); §4.1 server-side filtering switched from a
+  collection redirect to a Search & Discovery filter with a B2B-only 404 (#6);
+  §7 Step 4 buyer auth is Customer Account API magic-link only, no password-set
+  flow (#7). Already aligned, left unchanged: §2 webhooks include
+  `app/scopes_update`, with `app_subscriptions/update` deferred to Phase 5
+  billing (#11).
+- **v0.1** (2026-05-18) — initial working draft. Sections 1–12.

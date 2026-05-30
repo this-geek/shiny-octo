@@ -7,7 +7,14 @@ never replaces** — Companies, Catalogs, Markets, payment terms remain
 Shopify's. The differentiator is the **dealer asset portal**; tier pricing,
 minimums, shipping rules, and a registration/approval flow round it out.
 
-Currently this repo contains specs only. No code has been written.
+Phases 0–2 are substantially implemented and tested: a Cloudflare Worker
+(Hono) API, a Remix admin on Cloudflare Pages, a Theme App Extension, three
+Shopify Functions, and the dealer asset portal (Worker-hosted via App Proxy,
+with a customer-account link block surfacing it). A few P0s are still deferred
+— Cloudflare resource provisioning, Cloudflare Images variant generation, and
+the `/_ops` operator console; Phase 3 onward is the Day-2 feature backlog. See
+`PLAN.md` for checkbox-level status, `HANDOFF.md` for the latest session
+snapshot, and `MANUAL_STEPS.md` for deploy/config steps.
 
 ## Canonical documents
 
@@ -16,16 +23,24 @@ Currently this repo contains specs only. No code has been written.
   decision has a "trigger to revisit" condition.
 - `PLAN.md` — phased, checkbox-tracked implementation plan. Update checkboxes
   as work lands.
+- `HANDOFF.md` — per-session snapshot: what's built, what's deployable,
+  what's left, and the landmines.
+- `MANUAL_STEPS.md` — deployment & configuration runbook (Shopify Partner
+  dashboard, Cloudflare resources, secrets, DNS) — everything that can't be
+  done from code.
 
-When the three disagree: requirements describe intent, DECISIONS overrides
-ambiguous detail, PLAN sequences the work.
+When the first three disagree: requirements describe intent, DECISIONS
+overrides ambiguous detail, PLAN sequences the work. HANDOFF and MANUAL_STEPS
+are operational, not canonical — defer to them only for status and deploy
+steps respectively.
 
-## Stack (planned, not yet scaffolded)
+## Stack
 
 - Cloudflare Workers (Hono), D1, KV, R2, Queues, Cloudflare Images.
 - Shopify: Admin GraphQL, Theme App Extension, Shopify Functions
-  (cart-transform, cart-validation, delivery-customization), App Bridge 4 +
-  Polaris for admin, Customer Account API for buyers.
+  (cart-transform, cart-validation, delivery-customization), Remix admin on
+  Cloudflare Pages with App Bridge 4 + Polaris, Customer Account API for
+  buyers.
 - pnpm monorepo: `apps/worker`, `apps/admin`, `extensions/...`,
   `packages/shared`.
 
