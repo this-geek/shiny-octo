@@ -12,7 +12,10 @@ export function themeOf(info: TestInfo): string {
   return theme;
 }
 
-export function fixtureUrl(info: TestInfo, file: 'pdp.html' | 'pdp.b2b-only.html'): string {
+export function fixtureUrl(
+  info: TestInfo,
+  file: 'pdp.html' | 'pdp.b2b-only.html' | 'collection.html',
+): string {
   return pathToFileURL(resolve(fixturesRoot, themeOf(info), file)).href;
 }
 

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sample Collection — Prestige</title>
+  </head>
+  <body class="template-collection">
+    <main>
+      <div class="ProductList">
+        <div class="ProductItem">
+          <a href="/products/a" class="ProductItem__Title">Product A</a>
+          <span class="price"><span class="ProductItem__Price">$50.00</span></span>
+        </div>
+        <div class="ProductItem">
+          <a href="/products/b" class="ProductItem__Title">Product B</a>
+          <span class="price"><span class="ProductItem__Price">$100.00</span></span>
+        </div>
+        <div class="ProductItem">
+          <a href="/products/c" class="ProductItem__Title">Product C</a>
+          <span class="price"><span class="ProductItem__Price">$25.00</span></span>
+        </div>
+      </div>
+
+      <div
+        data-b2b-price-controller
+        data-app-proxy-path="apps/b2b"
+        data-price-selector="product-price, .product__price, .price"
+        data-show-savings-badge="true"
+        data-price-display="alongside"
+      ></div>
+    </main>
+    <script src="../b2b-price.js" defer></script>
+  </body>
+</html>

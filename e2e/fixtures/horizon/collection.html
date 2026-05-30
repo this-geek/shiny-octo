@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sample Collection — Horizon</title>
+  </head>
+  <body class="template-collection">
+    <main>
+      <div class="product-grid">
+        <div class="card">
+          <a href="/products/a">Product A</a>
+          <product-price>$50.00</product-price>
+        </div>
+        <div class="card">
+          <a href="/products/b">Product B</a>
+          <product-price>$100.00</product-price>
+        </div>
+        <div class="card">
+          <a href="/products/c">Product C</a>
+          <product-price>$25.00</product-price>
+        </div>
+      </div>
+
+      <div
+        data-b2b-price-controller
+        data-app-proxy-path="apps/b2b"
+        data-price-selector="product-price"
+        data-show-savings-badge="true"
+        data-price-display="alongside"
+      ></div>
+    </main>
+    <script src="../b2b-price.js" defer></script>
+  </body>
+</html>

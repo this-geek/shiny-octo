@@ -24,11 +24,13 @@ fixtures/
   <theme>/
     pdp.html                    # non-B2B visitor, regular product
     pdp.b2b-only.html           # non-B2B visitor, b2b_only product
+    collection.html             # listing page: 3 cards + site-wide controller
 tests/
   direct-url-guard.spec.ts      # b2b-price.js:67-71
   no-fouc.spec.ts               # b2b-price.js:84-87 (cache hit path)
   reveal-latency.spec.ts        # b2b-price.js:89-96 (cache miss path)
   theme-matrix.spec.ts          # hide-rule selector presence per theme
+  site-wide-pricing.spec.ts     # Phase 1K overlay: percent + amount + observer
 scripts/
   sync-asset.mjs                # pretest guard: fixture copy ≡ canonical
   capture-fixtures.mjs          # manual fixture refresh stub
