@@ -194,13 +194,19 @@ portalRouter.get('/api/assets/list', async c => {
 });
 
 portalRouter.get('/api/profile', async c => {
-  const r = await resolveBuyerFromProxyQuery(c);
-  if (!r.ok) return r.response;
   try {
+    const r = await resolveBuyerFromProxyQuery(c);
+    if (!r.ok) return r.response;
     const profile = await buildCompanyProfile(c.env, r.buyer);
     return c.json(profile);
   } catch (err) {
-    return c.json({ error: String((err as Error).message ?? err) }, 502);
+    const message = String((err as Error)?.message ?? err);
+    log('error', 'portal: /api/profile failed', {
+      shop: c.req.query('shop') ?? null,
+      error: message,
+      stack: (err as Error)?.stack ?? null,
+    });
+    return c.json({ error: message }, 502);
   }
 });
 
