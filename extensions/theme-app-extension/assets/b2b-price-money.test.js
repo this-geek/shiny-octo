@@ -144,3 +144,20 @@ describe('end-to-end: 20% off a displayed price', () => {
     expect(p.prefix + formatLikeOriginal(p.amount - discounted, p.numStr)).toBe('$20.00');
   });
 });
+
+describe('end-to-end: fixed-amount tier off a displayed price (v2)', () => {
+  // Mirrors applyTierDiscount('amount') — the same op the cart-transform
+  // Function applies to every line, so the overlay stays parity-exact.
+  it('$100.00 less $15 → $85.00, save $15.00', () => {
+    const p = parseMoney('$100.00');
+    const discounted = Math.max(0, p.amount - 15);
+    expect(p.prefix + formatLikeOriginal(discounted, p.numStr)).toBe('$85.00');
+    expect(p.prefix + formatLikeOriginal(p.amount - discounted, p.numStr)).toBe('$15.00');
+  });
+
+  it('clamps to zero when the amount exceeds the price', () => {
+    const p = parseMoney('$10.00');
+    const discounted = Math.max(0, p.amount - 15);
+    expect(p.prefix + formatLikeOriginal(discounted, p.numStr)).toBe('$0.00');
+  });
+});

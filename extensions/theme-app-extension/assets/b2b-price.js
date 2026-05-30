@@ -8,9 +8,15 @@
 //   2. Site-wide controller [data-b2b-price-controller]: scans the theme's
 //      price containers across collections / search / home / related products
 //      and overlays the tier delta on top of the already-rendered price.
-//      v1 handles PERCENT tiers only — amount tiers and per-product
-//      exclusions need the authoritative /tier-prices map (tracked as v2),
-//      so the overlay no-ops for non-percent tiers rather than guess.
+//      Handles percent AND amount tiers — both are the same operation the
+//      cart-transform Function performs (it discounts every line uniformly,
+//      no per-product exclusions), so client-side compute stays parity-exact
+//      with checkout (DECISIONS #21). A MutationObserver re-runs the scan for
+//      AJAX-rendered surfaces (cart drawer, quick view, infinite scroll).
+//
+// Plus shops: tier-context returns no tier (the Function is disabled there),
+// so the overlay naturally no-ops and never shows a discount checkout won't
+// honour.
 //
 // Money parsing here (parseMoney/parseAmount/formatLikeOriginal) is mirrored
 // byte-for-byte in assets/b2b-price-money.test.js — keep them in lockstep.
@@ -233,9 +239,10 @@
 
   function handleController(controller, ctx) {
     if (!ctx || !ctx.tier) return;
-    // v1: only percent tiers can be derived from the displayed price. Amount
-    // tiers / exclusions need authoritative per-variant cents (v2 /tier-prices).
-    if (ctx.tier.discount_type !== 'percent') return;
+    // Percent and amount tiers both apply to the displayed (catalog) price the
+    // same way the cart-transform Function does — it discounts every line
+    // uniformly with no per-product exclusions — so client-side compute stays
+    // parity-exact with checkout (DECISIONS #21). 'none' tiers carry value 0.
     if (!(ctx.tier.discount_value > 0)) return;
 
     var selector = (controller.getAttribute('data-price-selector') || '').trim();
@@ -249,6 +256,31 @@
     }
   }
 
+  var observing = false;
+
+  // Cover AJAX-rendered surfaces (cart drawer, quick view, infinite scroll)
+  // that mount prices after the initial paint. Debounced; overlayNode is
+  // idempotent (skips already-overlaid nodes) so re-scans after our own
+  // inserts settle without looping.
+  function observe(ctx) {
+    if (observing || !window.MutationObserver || !ctx || !ctx.tier) return;
+    var controllers = document.querySelectorAll('[data-b2b-price-controller]');
+    if (controllers.length === 0) return;
+    observing = true;
+    var scheduled = false;
+    var obs = new MutationObserver(function () {
+      if (scheduled) return;
+      scheduled = true;
+      setTimeout(function () {
+        scheduled = false;
+        for (var i = 0; i < controllers.length; i++) {
+          handleController(controllers[i], ctx);
+        }
+      }, 150);
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+
   function run(ctx) {
     // PDP blocks first so their cents-accurate render marks the main price as
     // overlaid before the controller scans.
@@ -258,6 +290,7 @@
     for (var i = 0; i < controllers.length; i++) {
       handleController(controllers[i], ctx);
     }
+    observe(ctx);
   }
 
   function init() {

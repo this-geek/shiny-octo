@@ -70,6 +70,8 @@ interface CachedTier {
   tier: { id: number; name: string; discount_type: string; discount_value: number } | null;
   b2b: boolean;
   company_id: string | null;
+  /** True on Shopify Plus, where the tier-discount Function is disabled. */
+  plus?: boolean;
 }
 
 appProxyRouter.get('/tier-context', async c => {
@@ -83,14 +85,25 @@ appProxyRouter.get('/tier-context', async c => {
   }
 
   const shopRow = await c.env.DB.prepare(
-    `SELECT id, shopify_domain, access_token_encrypted FROM shops WHERE shopify_domain = ?`,
+    `SELECT id, shopify_domain, access_token_encrypted, is_plus FROM shops WHERE shopify_domain = ?`,
   )
     .bind(shopDomain)
-    .first<{ id: number; shopify_domain: string; access_token_encrypted: string }>();
+    .first<{
+      id: number;
+      shopify_domain: string;
+      access_token_encrypted: string;
+      is_plus: number;
+    }>();
 
   if (!shopRow) {
     return c.json({ tier: null, b2b: false });
   }
+
+  // On Plus the tier-discount Function early-returns (native Catalogs do the
+  // pricing), so the storefront overlay MUST NOT apply a discount either — it
+  // would show a price that doesn't survive checkout. We still resolve B2B
+  // membership (b2b_only gating depends on it); we just never hand back a tier.
+  const isPlus = shopRow.is_plus === 1;
 
   const customerHash = await hashIdAsync(customerId);
   const cacheKey = `tier:${shopRow.id}:${customerHash}`;
@@ -145,18 +158,19 @@ appProxyRouter.get('/tier-context', async c => {
     .bind(shopRow.id, companyId)
     .first<{ tier_id: number; name: string; discount_type: string; discount_value: number }>();
 
-  const result: CachedTier = tierRow
-    ? {
-        b2b: true,
-        company_id: companyId,
-        tier: {
-          id: tierRow.tier_id,
-          name: tierRow.name,
-          discount_type: tierRow.discount_type,
-          discount_value: tierRow.discount_value,
-        },
-      }
-    : { b2b: true, company_id: companyId, tier: null };
+  const result: CachedTier =
+    tierRow && !isPlus
+      ? {
+          b2b: true,
+          company_id: companyId,
+          tier: {
+            id: tierRow.tier_id,
+            name: tierRow.name,
+            discount_type: tierRow.discount_type,
+            discount_value: tierRow.discount_value,
+          },
+        }
+      : { b2b: true, company_id: companyId, tier: null, plus: isPlus };
 
   await c.env.KV_HOT_CACHE.put(cacheKey, JSON.stringify(result), { expirationTtl: 300 });
 
