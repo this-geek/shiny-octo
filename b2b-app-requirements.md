@@ -121,7 +121,7 @@ Target: shippable to one merchant in production. App Store readiness is Phase 5,
 **Implementation**
 
 - Storefront: Theme App Extension App Embed Block that runs on every page, reads `customer.b2b?` and `customer.companyContactProfiles`, and replaces price/CTA blocks accordingly.
-- Server-side filtering: a Storefront API metafield filter rule, applied at collection-level via a redirect to a collection page that excludes `b2b_only` items.
+- Server-side filtering: a Search & Discovery metafield filter rule that excludes `b2b_only` items from collections and search; B2B-only products return 404 for non-B2B visitors. No redirect to an alternate collection (per DECISIONS #6).
 - Search: register a `collection.products` modification via metaobject; verify it filters correctly on Liquid Search and Search & Discovery app users.
 - Caching: cache the customer's company-tier mapping in localStorage with a 5-minute TTL; invalidate on login/logout.
 
@@ -181,7 +181,7 @@ Shopify allows 3 active catalogs on non-Plus plans. We let merchants define up t
 - Tier record: `{ id, shop_id, name, discount_type ('percent'|'amount'), discount_value, default_catalog_id (Shopify), priority }`.
 - Company-to-tier mapping: `{ shop_id, company_id, tier_id }`. One company has exactly one tier.
 - Shopify Function (cart-transform): reads the buyer's company, looks up tier via metafield mirror, applies discount to all eligible line items.
-- The catalog the buyer is in (via Shopify Markets) provides the base price; our Function discounts further.
+- The Catalog assigned to the buyer's Company Location provides the base price; Markets contributes only currency/locale/tax. Our Function discounts off whatever line price Shopify passes in (per DECISIONS #5).
 - Mirror tier mapping to Company metafield `b2b.tier_id` so the Function can read it (Functions cannot query our D1).
 
 **Site-wide price display (controlled in app config)**

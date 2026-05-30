@@ -188,7 +188,7 @@ Lighthouse Performance ≥ 80 on buyer pages; App Bridge init < 100ms.
 
 ## Cross-cutting backlog
 
-- [x] **P0** Requirements doc patches — apply DECISIONS #5, #6, #7, #11 to `b2b-app-requirements.md`, bump to v0.2. *(#5 §4.3 base-price/Markets split, #6 §4.1 404 gating, #11 §9 `app/scopes_update` + deferred `app_subscriptions/update` were already in the doc; v0.2 fixes the lingering #7 contradiction in §7 step 3 (was "set password flow"), bumps the version/date, and adds a changelog entry.)*
+- [x] **P0** Requirements doc patches — apply DECISIONS #5, #6, #7, #11 to `b2b-app-requirements.md`, bump to v0.2. *(v0.2 tightens §4.3 to the Catalog-base-price / Markets-tax-only split (#5), replaces the §4.1 collection-redirect with a Search & Discovery filter + B2B-only 404 (#6), and fixes the §7 step 4 "set password flow" contradiction to magic-link-only (#7). #11 (`app/scopes_update` in §2, `app_subscriptions/update` deferred) was already aligned. Adds a §13 Revision History.)*
 - [ ] **P0** Test data fixtures: dev store seed (companies, tiers, assets, applications) checked into `apps/admin/fixtures`.
 - [ ] **P2** Runbook: webhook backfill, R2 redaction, key rotation.
 - [ ] **P2** Cost dashboard: D1 reads, R2 egress, Images transformations, Workers requests per shop.
