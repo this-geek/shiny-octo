@@ -4,6 +4,7 @@ import { oauthRouter } from './routes/oauth.js';
 import { webhooksRouter, handleWebhookQueue } from './routes/webhooks.js';
 import { adminRouter } from './routes/admin.js';
 import { appProxyRouter } from './routes/app-proxy.js';
+import { securityHeadersMiddleware } from './middleware/security-headers.js';
 import { runActivationNudgesScan } from './handlers/activation-nudges.js';
 import { runGdprSweep } from './handlers/gdpr-sweep.js';
 import { log } from './lib/logger.js';
@@ -16,6 +17,8 @@ interface WebhookQueueMessage {
 }
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.use('*', securityHeadersMiddleware);
 
 app.route('/auth', oauthRouter);
 app.route('/webhooks', webhooksRouter);

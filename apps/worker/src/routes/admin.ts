@@ -3,6 +3,7 @@ import type { Env } from '../types.js';
 import { sessionTokenMiddleware } from '../middleware/session-token.js';
 import { ensureShopAuthMiddleware } from '../middleware/ensure-shop-auth.js';
 import { adminCors } from '../middleware/cors.js';
+import { adminRateLimit } from '../middleware/rate-limit.js';
 import { log } from '../lib/logger.js';
 import {
   mergeSettings,
@@ -22,6 +23,7 @@ export const adminRouter = new Hono<{ Bindings: Env }>();
 
 adminRouter.use('*', adminCors);
 adminRouter.use('*', sessionTokenMiddleware);
+adminRouter.use('*', adminRateLimit);
 adminRouter.use('*', ensureShopAuthMiddleware);
 
 adminRouter.route('/', adminTiersRouter);
