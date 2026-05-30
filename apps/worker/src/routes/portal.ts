@@ -12,6 +12,7 @@ import { buildCompanyProfile } from '../lib/company-profile.js';
 import { dismissTour, hasDismissedTour } from '../lib/tour-state.js';
 import { APP_JS } from './portal-assets/app-js.js';
 import { APP_CSS } from './portal-assets/app-css.js';
+import { applyBuyerHtmlSecurityHeaders } from '../lib/security-headers.js';
 
 /**
  * Buyer-facing dealer asset portal, rendered as a Worker-hosted HTML app
@@ -29,33 +30,13 @@ import { APP_CSS } from './portal-assets/app-css.js';
  */
 export const portalRouter = new Hono<{ Bindings: Env }>();
 
-const COMMON_HEADERS = {
-  'X-Robots-Tag': 'noindex, nofollow',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'no-referrer',
-  'Cache-Control': 'private, no-store',
-};
-
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data: https:",
-  "connect-src 'self'",
-  "frame-ancestors 'self' https://*.myshopify.com https://*.shopify.com",
-  "base-uri 'none'",
-  "form-action 'self'",
-].join('; ');
-
 function htmlResponse(body: string, status = 200): Response {
-  return new Response(body, {
+  const res = new Response(body, {
     status,
-    headers: {
-      ...COMMON_HEADERS,
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Security-Policy': CSP,
-    },
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
+  applyBuyerHtmlSecurityHeaders(res.headers);
+  return res;
 }
 
 function escapeHtml(value: string): string {

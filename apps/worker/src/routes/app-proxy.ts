@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types.js';
 import { appProxyMiddleware } from '../middleware/app-proxy-hmac.js';
+import { publicRateLimit } from '../middleware/rate-limit.js';
 import { decrypt } from '../lib/crypto.js';
 import { hashIdAsync, log } from '../lib/logger.js';
 import { resolveBuyerByCustomerId } from '../lib/buyer-context.js';
@@ -14,6 +15,7 @@ import { portalRouter } from './portal.js';
 
 export const appProxyRouter = new Hono<{ Bindings: Env }>();
 
+appProxyRouter.use('*', publicRateLimit);
 appProxyRouter.use('*', appProxyMiddleware);
 
 // Phase 1E — wholesale application form. Routes start with /application/*.
