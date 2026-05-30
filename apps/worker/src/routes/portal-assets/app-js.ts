@@ -127,28 +127,20 @@ export const APP_JS = String.raw`(function () {
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
-    api('/assets/download/' + encodeURIComponent(id))
-      .then(function (r) {
-        if (r.status === 429) {
-          window.alert('Monthly download limit reached. Please contact the store.');
-          return null;
-        }
-        if (r.status === 403) {
-          window.alert('You no longer have access to this file.');
-          return null;
-        }
-        if (!r.ok) {
-          window.alert('Download failed. Please try again.');
-          return null;
-        }
-        return r.json();
-      })
-      .then(function (data) {
-        if (data && data.url) window.location.href = data.url;
-      })
-      .catch(function () {
-        window.alert('Download failed. Please try again.');
-      });
+    // R2-backed assets stream their bytes from the worker with
+    // Content-Disposition: attachment. fetch() can't honour that header —
+    // the bytes would just land in JS memory — so we trigger a real
+    // navigation via a hidden anchor. The browser GETs the URL, sees the
+    // attachment disposition, and saves the file normally. 403/429 will
+    // surface as JSON in a new tab; that's rare in practice and acceptable
+    // for v1.
+    var href = proxyBase + '/api/assets/download/' + encodeURIComponent(id);
+    var a = document.createElement('a');
+    a.href = href;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function renderProfile(panel, data) {
