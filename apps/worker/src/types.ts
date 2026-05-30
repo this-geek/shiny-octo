@@ -19,4 +19,9 @@ export interface Env {
   // Verified Resend sending domain — the From: address for application
   // emails. Must be a domain you control with valid DKIM at Resend.
   EMAIL_FROM?: string;
+  // Phase 2 — Cloudflare Access for /_ops/*. Both must be set; if either
+  // is missing the ops console refuses every request (no header-only
+  // fallback). See DECISIONS #17.
+  OPS_ACCESS_TEAM?: string;
+  OPS_ACCESS_AUD?: string;
 }

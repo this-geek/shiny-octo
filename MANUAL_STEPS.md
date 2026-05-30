@@ -224,9 +224,13 @@ Edit `.env` with your Shopify app credentials for local development. (`.env` is 
 ```bash
 # Local
 wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0004_phase1j_nudges.sql --local
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0005_phase2_gdpr_requests.sql --local
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0006_phase2_audit_log.sql --local
 
 # Remote
 wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0004_phase1j_nudges.sql --remote
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0005_phase2_gdpr_requests.sql --remote
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0006_phase2_audit_log.sql --remote
 
 ```
 
@@ -676,3 +680,67 @@ After `shopify app deploy` lands the extension, **the merchant must paste the po
 
 Every merchant has a different shop domain (or a custom primary domain) and may run multiple stores from one app install, so the portal URL can't be hard-coded into the block. It's a one-time setting per shop — add it to your merchant onboarding checklist. The block intentionally renders nothing when the URL is empty so a half-installed app doesn't expose a broken link to buyers.
 
+---
+
+## 14. Operator console (`/_ops/*`) behind Cloudflare Access (DECISIONS #17)
+
+The `/_ops/*` routes on the Worker are an internal cross-tenant console for the app vendor's own staff — webhook inspection, GDPR queue review, per-shop feature flags, audit-log viewing. They are **not** Shopify-authenticated and must never be reachable without Cloudflare Access in front.
+
+### 14.1 Create the Access application
+
+1. Cloudflare dashboard → **Zero Trust** → **Access** → **Applications** → **Add an application** → **Self-hosted**.
+2. **Application domain**: the Worker hostname (`b2b-companion.<your-subdomain>.workers.dev`) with path `/_ops/*`. Subdomain-only is fine; the path field narrows it to the ops console.
+3. **Identity providers**: pick your team SSO (Google Workspace, Okta, GitHub, etc.). Email-OTP fallback is acceptable for break-glass.
+4. **Policies**: add a single Allow policy whose selector is `Emails ending in @<your-domain>` or an explicit allowlist of operator emails.
+5. **Session duration**: 24h is a reasonable default; shorter is safer.
+6. After creating, copy the **Application Audience (AUD) tag** from the application's overview tab — a long hex string like `a1b2c3…`. This is what the Worker verifies the JWT against.
+
+### 14.2 Set Worker secrets
+
+```bash
+# Team subdomain — the bit before .cloudflareaccess.com
+wrangler secret put OPS_ACCESS_TEAM
+# e.g. "acme" for acme.cloudflareaccess.com
+
+wrangler secret put OPS_ACCESS_AUD
+# the long hex AUD tag from step 14.1
+```
+
+If either secret is missing, the Worker returns `503 ops console not configured` to every `/_ops/*` request — there is **no header-only fallback**, by design.
+
+### 14.3 Verify
+
+```bash
+# Without an Access session — must be blocked at the CF edge:
+curl -i https://b2b-companion.<your-subdomain>.workers.dev/_ops/whoami
+# Expect a CF Access login redirect (HTML), not the Worker's 401.
+
+# After signing in to Access in a browser, run the same URL there.
+# Expect: {"email":"your.email@example.com"}
+```
+
+If the browser hit lands on the Worker's 401 (`missing Cf-Access-Jwt-Assertion`) instead of an Access login page, the Access application's domain or path filter is wrong and requests are bypassing Access.
+
+### 14.4 Routes (v1)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET    | `/_ops/whoami` | Identity probe (returns verified SSO email). |
+| GET    | `/_ops/shops` | List every installed shop. |
+| GET    | `/_ops/shops/:domain` | Shop detail with counts (tiers, applications, assets, pending GDPR). |
+| GET    | `/_ops/shops/:domain/feature-flags` | Read per-shop flags. |
+| PUT    | `/_ops/shops/:domain/feature-flags` | Replace per-shop flags. **Writes `ops_log`.** |
+| GET    | `/_ops/shops/:domain/audit-log` | Merchant audit log for one shop (filterable). |
+| GET    | `/_ops/ops-log?shop=&operator=` | Operator audit log (filterable). |
+| GET    | `/_ops/gdpr/pending?shop=` | Cross-tenant view of GDPR queue. |
+| POST   | `/_ops/gdpr/:id/cancel` | Cancel during the stand-down. **Writes `ops_log`.** |
+| POST   | `/_ops/gdpr/:id/process` | Pull `due_at` forward so the next cron tick processes it. **Writes `ops_log`.** |
+| GET    | `/_ops/webhooks?shop=&status=` | Inspect `webhook_log` rows. |
+
+Every mutation writes one `ops_log` row with the verified operator email (`occurred_at`, `action`, before/after `details_json`).
+
+### 14.5 Out of scope for v1
+
+- **Webhook replay**. `webhook_log` doesn't store bodies; Shopify has no re-delivery API. Adding a body sidecar (R2 or D1 blob, scoped by retention) is the natural follow-up — tracked in PLAN.
+- **Queue retry**. No DLQ configured today. When one is added, surface failed jobs here.
+- **Encryption-key rotation**. Rotating `MASTER_KEY` requires re-encrypting every D1 row under the old key; that's an offline procedure with its own runbook, not a one-click ops action. The Worker still surfaces the master-key fingerprint so operators can confirm a rotation has landed end-to-end (TODO — currently inferred from the deploy revision).

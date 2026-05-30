@@ -33,6 +33,7 @@ import {
 import { enqueueApplicationEmail } from '../lib/internal-jobs.js';
 import { assertKeyBelongsToShop } from '../lib/r2-keys.js';
 import { CustomerInviteError, sendCustomerInvite } from '../lib/shopify-customer-invite.js';
+import { writeAudit } from '../lib/audit-log.js';
 
 export const adminApplicationsRouter = new Hono<{ Bindings: Env }>();
 
@@ -170,6 +171,14 @@ adminApplicationsRouter.post('/applications/:id/approve', async c => {
       decidedBy: sessionPayload.sub,
       notes: typeof body.notes === 'string' ? body.notes : detail.decision_notes,
     });
+    await writeAudit(c.env.DB, {
+      shopId,
+      actor: sessionPayload.sub,
+      action: 'application.approve',
+      entityType: 'application',
+      entityId: id,
+      details: { idempotent: true, company_id: row.created_company_id },
+    });
     return c.json({
       application: row,
       created_company_id: row.created_company_id,
@@ -219,6 +228,19 @@ adminApplicationsRouter.post('/applications/:id/approve', async c => {
     companyId: result.companyId,
     locationId: result.locationId,
     customerId: result.customerId,
+  });
+
+  await writeAudit(c.env.DB, {
+    shopId,
+    actor: sessionPayload.sub,
+    action: 'application.approve',
+    entityType: 'application',
+    entityId: id,
+    details: {
+      company_id: result.companyId,
+      location_id: result.locationId,
+      customer_id: result.customerId,
+    },
   });
 
   await enqueueApplicationEmail(c.env, shopDomain, id, 'approved');
@@ -298,6 +320,17 @@ async function handleSimpleDecision(
       status,
       decidedBy: sessionPayload.sub,
       notes: typeof body.notes === 'string' ? body.notes : null,
+    });
+    await writeAudit(c.env.DB, {
+      shopId,
+      actor: sessionPayload.sub,
+      action: status === 'rejected' ? 'application.reject' : 'application.request_info',
+      entityType: 'application',
+      entityId: id,
+      details: {
+        idempotent: alreadyApplied,
+        notes: typeof body.notes === 'string' ? body.notes : null,
+      },
     });
     if (!alreadyApplied) {
       await enqueueApplicationEmail(
