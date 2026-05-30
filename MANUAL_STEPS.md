@@ -224,9 +224,13 @@ Edit `.env` with your Shopify app credentials for local development. (`.env` is 
 ```bash
 # Local
 wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0004_phase1j_nudges.sql --local
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0005_phase2_gdpr_requests.sql --local
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml  --file=migrations/0006_phase2_audit_log.sql --local
 
 # Remote
 wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0004_phase1j_nudges.sql --remote
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0005_phase2_gdpr_requests.sql --remote
+wrangler d1 execute b2b-companion -c apps/worker/wrangler.toml --file=migrations/0006_phase2_audit_log.sql --remote
 
 ```
 

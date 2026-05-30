@@ -22,6 +22,7 @@ import {
 import { getShopAuth } from '../lib/shop-token.js';
 import { listShopifyCompanies } from '../lib/shopify-companies.js';
 import { log } from '../lib/logger.js';
+import { writeAudit } from '../lib/audit-log.js';
 
 // Mounted under adminRouter, which applies sessionTokenMiddleware globally.
 export const adminTiersRouter = new Hono<{ Bindings: Env }>();
@@ -64,6 +65,19 @@ adminTiersRouter.post('/tiers', async c => {
   }
 
   const tier = await createTier(c.env.DB, shopId, input);
+  const sessionPayload = c.get('sessionPayload');
+  await writeAudit(c.env.DB, {
+    shopId,
+    actor: sessionPayload.sub,
+    action: 'tier.create',
+    entityType: 'tier',
+    entityId: tier.id,
+    details: {
+      name: input.name,
+      discount_type: input.discount_type,
+      discount_value: input.discount_value,
+    },
+  });
   await enqueueTiersConfigPublish(c.env, shopDomain);
   log('info', 'admin: tier created', { shop: shopDomain, tier_id: tier.id });
   return c.json({ tier }, 201);
@@ -97,6 +111,19 @@ adminTiersRouter.put('/tiers/:id', async c => {
   const tier = await updateTier(c.env.DB, shopId, id, input);
   if (!tier) return c.json({ error: 'tier not found' }, 404);
 
+  const sessionPayload = c.get('sessionPayload');
+  await writeAudit(c.env.DB, {
+    shopId,
+    actor: sessionPayload.sub,
+    action: 'tier.update',
+    entityType: 'tier',
+    entityId: id,
+    details: {
+      name: input.name,
+      discount_type: input.discount_type,
+      discount_value: input.discount_value,
+    },
+  });
   await enqueueTiersConfigPublish(c.env, shopDomain);
   log('info', 'admin: tier updated', { shop: shopDomain, tier_id: id });
   return c.json({ tier });
@@ -120,6 +147,15 @@ adminTiersRouter.delete('/tiers/:id', async c => {
   const removed = await softDeleteTier(c.env.DB, shopId, id);
   if (!removed) return c.json({ error: 'tier not found' }, 404);
 
+  const sessionPayload = c.get('sessionPayload');
+  await writeAudit(c.env.DB, {
+    shopId,
+    actor: sessionPayload.sub,
+    action: 'tier.delete',
+    entityType: 'tier',
+    entityId: id,
+    details: { name: tier.name },
+  });
   await enqueueTiersConfigPublish(c.env, shopDomain);
   log('info', 'admin: tier deleted', { shop: shopDomain, tier_id: id });
   return c.json({ ok: true });
@@ -240,6 +276,18 @@ adminTiersRouter.put('/company-mappings/:companyGid', async c => {
       tier_id as number,
       (credit_limit as number | null | undefined) ?? null,
     );
+    const sessionPayload = c.get('sessionPayload');
+    await writeAudit(c.env.DB, {
+      shopId,
+      actor: sessionPayload.sub,
+      action: 'company_mapping.upsert',
+      entityType: 'company_mapping',
+      entityId: companyGid,
+      details: {
+        tier_id: tier_id as number,
+        credit_limit: (credit_limit as number | null | undefined) ?? null,
+      },
+    });
     await enqueueCompanyTierMirror(c.env, shopDomain, companyGid, tier_id as number);
     log('info', 'admin: company mapping upserted', {
       shop: shopDomain,
@@ -264,6 +312,14 @@ adminTiersRouter.delete('/company-mappings/:companyGid', async c => {
   try {
     const removed = await deleteMapping(c.env.DB, shopId, companyGid);
     if (!removed) return c.json({ error: 'mapping not found' }, 404);
+    const sessionPayload = c.get('sessionPayload');
+    await writeAudit(c.env.DB, {
+      shopId,
+      actor: sessionPayload.sub,
+      action: 'company_mapping.delete',
+      entityType: 'company_mapping',
+      entityId: companyGid,
+    });
     await enqueueCompanyTierMirror(c.env, shopDomain, companyGid, null);
     log('info', 'admin: company mapping deleted', {
       shop: shopDomain,

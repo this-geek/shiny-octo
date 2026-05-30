@@ -13,6 +13,7 @@ import {
   validateAdminSettingsPatch,
 } from '../lib/settings.js';
 import { enqueuePriceDisplayPublish } from '../lib/internal-jobs.js';
+import { listAudit, type AuditEntityType } from '../lib/audit-log.js';
 import { adminTiersRouter } from './admin-tiers.js';
 import { adminAssetsRouter } from './admin-assets.js';
 import { adminApplicationsRouter } from './admin-applications.js';
@@ -125,4 +126,52 @@ adminRouter.put('/settings', async c => {
   });
 
   return c.json(pickAdminSettings(merged));
+});
+
+const AUDIT_ENTITY_TYPES: ReadonlyArray<AuditEntityType> = [
+  'application',
+  'tier',
+  'company_mapping',
+  'asset',
+];
+
+adminRouter.get('/audit-log', async c => {
+  const shopDomain = c.get('shopDomain');
+  const row = await c.env.DB.prepare(
+    `SELECT id FROM shops WHERE shopify_domain = ?`,
+  )
+    .bind(shopDomain)
+    .first<{ id: number }>();
+  if (!row) return c.json({ error: 'shop not found' }, 404);
+
+  const entityTypeParam = c.req.query('entity_type');
+  let entityType: AuditEntityType | undefined;
+  if (entityTypeParam) {
+    if (!(AUDIT_ENTITY_TYPES as readonly string[]).includes(entityTypeParam)) {
+      return c.json({ error: 'invalid entity_type' }, 400);
+    }
+    entityType = entityTypeParam as AuditEntityType;
+  }
+
+  const entityId = c.req.query('entity_id') ?? undefined;
+  const actor = c.req.query('actor') ?? undefined;
+  const limitRaw = c.req.query('limit');
+  const beforeRaw = c.req.query('before');
+  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+  const before = beforeRaw ? Number.parseInt(beforeRaw, 10) : undefined;
+  if (limit !== undefined && (!Number.isFinite(limit) || limit <= 0)) {
+    return c.json({ error: 'limit must be a positive integer' }, 400);
+  }
+  if (before !== undefined && (!Number.isFinite(before) || before <= 0)) {
+    return c.json({ error: 'before must be a positive integer (epoch seconds)' }, 400);
+  }
+
+  const entries = await listAudit(c.env.DB, row.id, {
+    entityType,
+    entityId,
+    actor,
+    limit,
+    before,
+  });
+  return c.json({ entries });
 });

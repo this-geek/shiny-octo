@@ -39,6 +39,7 @@ import {
   saveSession,
   type UploadedPart,
 } from '../lib/r2-multipart.js';
+import { writeAudit } from '../lib/audit-log.js';
 
 // Mounted under adminRouter, which applies sessionTokenMiddleware globally.
 export const adminAssetsRouter = new Hono<{ Bindings: Env }>();
@@ -233,6 +234,18 @@ adminAssetsRouter.post('/assets', async c => {
 
   try {
     const asset = await createAsset(c.env.DB, shopId, input, rules);
+    await writeAudit(c.env.DB, {
+      shopId,
+      actor: sessionPayload.sub,
+      action: 'asset.create',
+      entityType: 'asset',
+      entityId: asset.id,
+      details: {
+        type: asset.type,
+        visibility_mode: asset.visibility_mode,
+        rule_count: rules.length,
+      },
+    });
     log('info', 'admin: asset created', {
       shop: shopDomain,
       asset_id: asset.id,
@@ -286,6 +299,7 @@ adminAssetsRouter.put('/assets/:id', async c => {
 
 adminAssetsRouter.put('/assets/:id/visibility', async c => {
   const shopDomain = c.get('shopDomain');
+  const sessionPayload = c.get('sessionPayload');
   const shopId = await resolveShopId(c.env, shopDomain);
   if (shopId === null) return c.json({ error: 'shop not found' }, 404);
 
@@ -309,9 +323,26 @@ adminAssetsRouter.put('/assets/:id/visibility', async c => {
     return c.json({ error: message }, 400);
   }
 
+  const before = await getAsset(c.env.DB, shopId, id);
+  const beforeRules = before ? await listVisibilityRules(c.env.DB, before.id) : [];
+
   try {
     const asset = await setAssetVisibility(c.env.DB, shopId, id, mode, rules);
     if (!asset) return c.json({ error: 'asset not found' }, 404);
+    await writeAudit(c.env.DB, {
+      shopId,
+      actor: sessionPayload.sub,
+      action: 'asset.visibility.update',
+      entityType: 'asset',
+      entityId: id,
+      details: {
+        before: {
+          visibility_mode: before?.visibility_mode ?? null,
+          rules: beforeRules,
+        },
+        after: { visibility_mode: mode, rules },
+      },
+    });
     return c.json({ asset, rules });
   } catch (err) {
     if (err instanceof AssetValidationError) {
@@ -331,6 +362,15 @@ adminAssetsRouter.delete('/assets/:id', async c => {
 
   const removed = await softDeleteAsset(c.env.DB, shopId, id);
   if (!removed) return c.json({ error: 'asset not found' }, 404);
+
+  const sessionPayload = c.get('sessionPayload');
+  await writeAudit(c.env.DB, {
+    shopId,
+    actor: sessionPayload.sub,
+    action: 'asset.delete',
+    entityType: 'asset',
+    entityId: id,
+  });
 
   // Note: the R2 object is left in place for v1 (recovery window). A nightly
   // cron should hard-delete R2 objects whose D1 rows have been soft-deleted
@@ -410,6 +450,17 @@ adminAssetsRouter.post('/assets/bulk-visibility', async c => {
       return c.json({ error: 'bulk visibility only supports all_b2b' }, 400);
     }
     const changed = await bulkSetVisibility(c.env.DB, shopId, ids, 'all_b2b');
+    if (changed > 0) {
+      const sessionPayload = c.get('sessionPayload');
+      await writeAudit(c.env.DB, {
+        shopId,
+        actor: sessionPayload.sub,
+        action: 'asset.visibility.bulk_update',
+        entityType: 'asset',
+        entityId: ids.join(','),
+        details: { asset_ids: ids, visibility_mode: 'all_b2b', changed },
+      });
+    }
     return c.json({ updated: changed });
   } catch (err) {
     if (err instanceof AssetValidationError) {
@@ -433,6 +484,17 @@ adminAssetsRouter.post('/assets/bulk-delete', async c => {
   try {
     const ids = parseAssetIds(body.asset_ids);
     const removed = await bulkSoftDelete(c.env.DB, shopId, ids);
+    if (removed > 0) {
+      const sessionPayload = c.get('sessionPayload');
+      await writeAudit(c.env.DB, {
+        shopId,
+        actor: sessionPayload.sub,
+        action: 'asset.bulk_delete',
+        entityType: 'asset',
+        entityId: ids.join(','),
+        details: { asset_ids: ids, deleted: removed },
+      });
+    }
     return c.json({ deleted: removed });
   } catch (err) {
     if (err instanceof AssetValidationError) {
