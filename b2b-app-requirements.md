@@ -583,3 +583,19 @@ These need to be resolved before or during Phase 1. Track in project board.
 4. Do we need our own application-fraud signal (disposable email detection, geo-velocity checks)?
 5. Default email sender — `noreply@<our domain>` with merchant brand, or Shopify Email API for reliability?
 6. Pilot merchant payment for the bespoke work — flat fee, hourly, or credit against future SaaS bill?
+
+Resolutions for these (and the ambiguities they raise) are tracked in `DECISIONS.md`.
+
+---
+
+## 13. Revision History
+
+- **v0.2** (2026-05-30) — reconciled with `DECISIONS.md`: §4.3 base price from
+  the Company Location's Catalog with Markets contributing only
+  currency/locale/tax (#5); §4.1 server-side filtering switched from a
+  collection redirect to a Search & Discovery filter with a B2B-only 404 (#6);
+  §7 Step 4 buyer auth is Customer Account API magic-link only, no password-set
+  flow (#7). Already aligned, left unchanged: §2 webhooks include
+  `app/scopes_update`, with `app_subscriptions/update` deferred to Phase 5
+  billing (#11).
+- **v0.1** (2026-05-18) — initial working draft. Sections 1–12.
